@@ -10,7 +10,10 @@ find_package(OpenGL REQUIRED)
 # For manual setups, you might need to include glad.c if not linking a library.
 # Here we assume you have the glad library available.
 
-add_executable(HelloTriangle main.cpp)
+add_executable(HelloTriangle
+    main.cpp
+    ShaderProgram.cpp
+)
 
 # Link the libraries
 target_link_libraries(HelloTriangle glfw OpenGL::GL)

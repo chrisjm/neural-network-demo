@@ -10,6 +10,8 @@
 
 #include <iostream>
 
+#include "ShaderProgram.h"
+
 // ==========================================
 // 1. THE SHADER SOURCE CODE (The "Recipe")
 // ==========================================
@@ -134,55 +136,18 @@ int main() {
     // ==========================================
 
     // A. Compile Vertex Shader
-    unsigned int vertexShader = glCreateShader(GL_VERTEX_SHADER);
-    glShaderSource(vertexShader, 1, &vertexShaderSource, NULL);
-    glCompileShader(vertexShader);
-    // Check for errors (Did we make a typo in the GLSL string?)
-    int success;
-    char infoLog[512];
-    glGetShaderiv(vertexShader, GL_COMPILE_STATUS, &success);
-    if (!success) {
-        glGetShaderInfoLog(vertexShader, 512, NULL, infoLog);
-        std::cout << "ERROR::SHADER::VERTEX::COMPILATION_FAILED\n" << infoLog << std::endl;
-    } else {
-        std::cout << "[Shader] Vertex shader compiled successfully" << std::endl;
-    }
-
     // B. Compile Fragment Shader
-    unsigned int fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
-    glShaderSource(fragmentShader, 1, &fragmentShaderSource, NULL);
-    glCompileShader(fragmentShader);
-    // Check errors...
-    glGetShaderiv(fragmentShader, GL_COMPILE_STATUS, &success);
-    if (!success) {
-        glGetShaderInfoLog(fragmentShader, 512, NULL, infoLog);
-        std::cout << "ERROR::SHADER::FRAGMENT::COMPILATION_FAILED\n" << infoLog << std::endl;
-    } else {
-        std::cout << "[Shader] Fragment shader compiled successfully" << std::endl;
-    }
-
     // C. Link Shaders into a "Program"
     // This links the Vertex and Fragment stages into a single executable pipeline.
-    unsigned int shaderProgram = glCreateProgram();
-    glAttachShader(shaderProgram, vertexShader);
-    glAttachShader(shaderProgram, fragmentShader);
-    glLinkProgram(shaderProgram);
-
-    glGetProgramiv(shaderProgram, GL_LINK_STATUS, &success);
-    if (!success) {
-        glGetProgramInfoLog(shaderProgram, 512, NULL, infoLog);
-        std::cout << "ERROR::SHADER::PROGRAM::LINKING_FAILED\n" << infoLog << std::endl;
-    } else {
-        std::cout << "[Shader] Program linked successfully" << std::endl;
-    }
+    ShaderProgram shaderProgram(vertexShaderSource, fragmentShaderSource);
 
     check_gl_error("After shader program link");
 
     // Query uniform locations so we can drive them from the CPU
-    int offsetLocation   = glGetUniformLocation(shaderProgram, "uOffset");
-    int colorLocation    = glGetUniformLocation(shaderProgram, "uColor");
-    int scaleLocation    = glGetUniformLocation(shaderProgram, "uScale");
-    int rotationLocation = glGetUniformLocation(shaderProgram, "uRotation");
+    int offsetLocation   = glGetUniformLocation(shaderProgram.getId(), "uOffset");
+    int colorLocation    = glGetUniformLocation(shaderProgram.getId(), "uColor");
+    int scaleLocation    = glGetUniformLocation(shaderProgram.getId(), "uScale");
+    int rotationLocation = glGetUniformLocation(shaderProgram.getId(), "uRotation");
     if (offsetLocation == -1) {
         std::cout << "[Uniform] Warning: uOffset not found (might be optimized out if unused)" << std::endl;
     } else {
@@ -203,10 +168,6 @@ int main() {
     } else {
         std::cout << "[Uniform] uRotation location  = " << rotationLocation << std::endl;
     }
-
-    // We can delete the intermediate object files now
-    glDeleteShader(vertexShader);
-    glDeleteShader(fragmentShader);
 
     // ==========================================
     // 4. LOAD ASSETS (Sending Mesh to VRAM)
@@ -334,7 +295,7 @@ int main() {
         glClear(GL_COLOR_BUFFER_BIT);
 
         // Render Command 2: Use our compiled shader program
-        glUseProgram(shaderProgram);
+        shaderProgram.use();
 
         // Update uniforms every frame so the GPU sees the latest CPU-side values
         if (offsetLocation != -1) {
@@ -365,7 +326,6 @@ int main() {
     // Cleanup
     glDeleteVertexArrays(1, &VAO);
     glDeleteBuffers(1, &VBO);
-    glDeleteProgram(shaderProgram);
 
     glfwTerminate();
     return 0;
