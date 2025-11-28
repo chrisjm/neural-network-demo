@@ -17,15 +17,36 @@
 // we put them right here in the C++ code.
 
 // VERTEX SHADER: The "Where" step.
-// It takes a 3D position (aPos) and a 2D offset (uOffset) and passes it to the rasterizer.
+// It takes a 3D position (aPos), applies scale and rotation around the triangle's center, then adds an offset.
 const char *vertexShaderSource = "#version 330 core\n"
     "layout (location = 0) in vec3 aPos;\n"
-    "uniform vec2 uOffset;\n"
+    "uniform vec2  uOffset;\n"
+    "uniform float uScale;\n"
+    "uniform float uRotation;\n"
     "void main()\n"
     "{\n"
-    "   // Offset the position in X/Y using a uniform controlled from the CPU.\n"
-    "   vec3 pos = aPos + vec3(uOffset, 0.0);\n"
-    "   gl_Position = vec4(pos, 1.0);\n"
+    "   // Build a 2D transformation matrix from scale and rotation.\n"
+    "   float c = cos(uRotation);\n"
+    "   float s = sin(uRotation);\n"
+    "   mat3 scaleMat = mat3(\n"
+    "       uScale, 0.0,   0.0,\n"
+    "       0.0,   uScale, 0.0,\n"
+    "       0.0,   0.0,    1.0\n"
+    "   );\n"
+    "   mat3 rotMat = mat3(\n"
+    "       c,  -s,  0.0,\n"
+    "       s,   c,  0.0,\n"
+    "       0.0, 0.0, 1.0\n"
+    "   );\n"
+    "   mat3 transform = rotMat * scaleMat;\n"
+    "   // The triangle's center in its original coordinates is at (0, -1/6).\n"
+    "   vec2 pivot = vec2(0.0, -0.1666667);\n"
+    "   // Move into pivot space so we rotate around the center.\n"
+    "   vec3 localPos = vec3(aPos.xy - pivot, 0.0);\n"
+    "   vec3 rotatedScaled = transform * localPos;\n"
+    "   // Move back out of pivot space and then apply the user-controlled offset.\n"
+    "   vec2 worldPos2D = rotatedScaled.xy + pivot + uOffset;\n"
+    "   gl_Position = vec4(worldPos2D, aPos.z, 1.0);\n"
     "}\0";
 
 // FRAGMENT SHADER: The "Color" step.
@@ -158,8 +179,10 @@ int main() {
     check_gl_error("After shader program link");
 
     // Query uniform locations so we can drive them from the CPU
-    int offsetLocation = glGetUniformLocation(shaderProgram, "uOffset");
-    int colorLocation  = glGetUniformLocation(shaderProgram, "uColor");
+    int offsetLocation   = glGetUniformLocation(shaderProgram, "uOffset");
+    int colorLocation    = glGetUniformLocation(shaderProgram, "uColor");
+    int scaleLocation    = glGetUniformLocation(shaderProgram, "uScale");
+    int rotationLocation = glGetUniformLocation(shaderProgram, "uRotation");
     if (offsetLocation == -1) {
         std::cout << "[Uniform] Warning: uOffset not found (might be optimized out if unused)" << std::endl;
     } else {
@@ -169,6 +192,16 @@ int main() {
         std::cout << "[Uniform] Warning: uColor not found (might be optimized out if unused)" << std::endl;
     } else {
         std::cout << "[Uniform] uColor location  = " << colorLocation << std::endl;
+    }
+    if (scaleLocation == -1) {
+        std::cout << "[Uniform] Warning: uScale not found (might be optimized out if unused)" << std::endl;
+    } else {
+        std::cout << "[Uniform] uScale location  = " << scaleLocation << std::endl;
+    }
+    if (rotationLocation == -1) {
+        std::cout << "[Uniform] Warning: uRotation not found (might be optimized out if unused)" << std::endl;
+    } else {
+        std::cout << "[Uniform] uRotation location  = " << rotationLocation << std::endl;
     }
 
     // We can delete the intermediate object files now
@@ -214,9 +247,13 @@ int main() {
     // Initial CPU-side state for uniforms
     float offsetX = 0.0f;
     float offsetY = 0.0f;
+    float scale   = 1.0f;
+    float rotation = 0.0f; // in radians
     float color[3] = {1.0f, 0.5f, 0.2f}; // start with the original orange-ish color
-    std::cout << "[State] Initial offset = (" << offsetX << ", " << offsetY << ")" << std::endl;
-    std::cout << "[State] Initial color  = (" << color[0] << ", " << color[1] << ", " << color[2] << ")" << std::endl;
+    std::cout << "[State] Initial offset   = (" << offsetX << ", " << offsetY << ")" << std::endl;
+    std::cout << "[State] Initial scale    = " << scale << std::endl;
+    std::cout << "[State] Initial rotation = " << rotation << " radians" << std::endl;
+    std::cout << "[State] Initial color    = (" << color[0] << ", " << color[1] << ", " << color[2] << ")" << std::endl;
 
     // ==========================================
     // 5. THE GAME LOOP
@@ -227,7 +264,9 @@ int main() {
         if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
             glfwSetWindowShouldClose(window, true);
 
-        const float moveSpeed = 0.01f; // how fast the triangle moves per frame when key is held
+        const float moveSpeed     = 0.01f; // how fast the triangle moves per frame when key is held
+        const float scaleStep     = 0.01f; // how much scale changes per key press
+        const float rotationStep  = 0.05f; // radians per key press (~3 degrees)
 
         // Arrow keys move the triangle by changing the offset uniform
         if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS) {
@@ -245,6 +284,27 @@ int main() {
         if (glfwGetKey(window, GLFW_KEY_RIGHT) == GLFW_PRESS) {
             offsetX += moveSpeed;
             std::cout << "[Input] RIGHT -> offset = (" << offsetX << ", " << offsetY << ")" << std::endl;
+        }
+
+        // Scale controls (Z/X)
+        if (glfwGetKey(window, GLFW_KEY_Z) == GLFW_PRESS) {
+            scale -= scaleStep;
+            if (scale < 0.1f) scale = 0.1f; // avoid inverting/vanishing
+            std::cout << "[Input] Z -> scale = " << scale << std::endl;
+        }
+        if (glfwGetKey(window, GLFW_KEY_X) == GLFW_PRESS) {
+            scale += scaleStep;
+            std::cout << "[Input] X -> scale = " << scale << std::endl;
+        }
+
+        // Rotation controls (Q/E)
+        if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS) {
+            rotation -= rotationStep;
+            std::cout << "[Input] Q -> rotation = " << rotation << " radians" << std::endl;
+        }
+        if (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS) {
+            rotation += rotationStep;
+            std::cout << "[Input] E -> rotation = " << rotation << " radians" << std::endl;
         }
 
         // Number keys change the color uniform
@@ -283,6 +343,12 @@ int main() {
         if (colorLocation != -1) {
             glUniform3f(colorLocation, color[0], color[1], color[2]);
         }
+        if (scaleLocation != -1) {
+            glUniform1f(scaleLocation, scale);
+        }
+        if (rotationLocation != -1) {
+            glUniform1f(rotationLocation, rotation);
+        }
 
         // Render Command 3: Bind the mesh
         glBindVertexArray(VAO);
@@ -290,8 +356,6 @@ int main() {
         // Render Command 4: DRAW!
         // "Draw 3 vertices starting from index 0"
         glDrawArrays(GL_TRIANGLES, 0, 3);
-
-        check_gl_error("End of frame");
 
         // Swap buffers (Double buffering prevents flickering)
         glfwSwapBuffers(window);
