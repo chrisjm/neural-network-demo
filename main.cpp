@@ -11,6 +11,7 @@
 #include <iostream>
 
 #include "ShaderProgram.h"
+#include "TriangleMesh.h"
 
 // ==========================================
 // 1. THE SHADER SOURCE CODE (The "Recipe")
@@ -182,26 +183,12 @@ int main() {
 
     unsigned int VBO, VAO;
     // Generate IDs for buffers
-    glGenVertexArrays(1, &VAO);
-    glGenBuffers(1, &VBO);
-
     // 1. Bind the Vertex Array Object first
-    glBindVertexArray(VAO);
-
     // 2. Copy our vertices array in a buffer for OpenGL to use
-    glBindBuffer(GL_ARRAY_BUFFER, VBO);
-
     // THIS IS THE MOMENT we move data from RAM -> VRAM
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-
     // 3. Set the vertex attribute pointers
     // Tell the GPU how to interpret the raw binary data (It's 3 floats per vertex)
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
-    glEnableVertexAttribArray(0);
-
-    // Unbind (cleanup)
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-    glBindVertexArray(0);
+    TriangleMesh triangle(vertices, 3, VAO, VBO);
 
     check_gl_error("After VAO/VBO setup");
 
@@ -312,11 +299,11 @@ int main() {
         }
 
         // Render Command 3: Bind the mesh
-        glBindVertexArray(VAO);
+        triangle.bind();
 
         // Render Command 4: DRAW!
         // "Draw 3 vertices starting from index 0"
-        glDrawArrays(GL_TRIANGLES, 0, 3);
+        triangle.draw();
 
         // Swap buffers (Double buffering prevents flickering)
         glfwSwapBuffers(window);
