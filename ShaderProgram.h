@@ -10,6 +10,10 @@ public:
     void use() const;
     unsigned int getId() const { return m_id; }
 
+    void setVec2(int location, float x, float y) const;
+    void setVec3(int location, float x, float y, float z) const;
+    void setFloat(int location, float value) const;
+
     ShaderProgram(const ShaderProgram&) = delete;
     ShaderProgram& operator=(const ShaderProgram&) = delete;
 

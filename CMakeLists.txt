@@ -14,6 +14,7 @@ add_executable(HelloTriangle
     main.cpp
     ShaderProgram.cpp
     TriangleMesh.cpp
+    App.cpp
 )
 
 # Link the libraries

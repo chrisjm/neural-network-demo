@@ -81,3 +81,21 @@ ShaderProgram& ShaderProgram::operator=(ShaderProgram&& other) noexcept {
 void ShaderProgram::use() const {
     glUseProgram(m_id);
 }
+
+void ShaderProgram::setVec2(int location, float x, float y) const {
+    if (location != -1) {
+        glUniform2f(location, x, y);
+    }
+}
+
+void ShaderProgram::setVec3(int location, float x, float y, float z) const {
+    if (location != -1) {
+        glUniform3f(location, x, y, z);
+    }
+}
+
+void ShaderProgram::setFloat(int location, float value) const {
+    if (location != -1) {
+        glUniform1f(location, value);
+    }
+}
