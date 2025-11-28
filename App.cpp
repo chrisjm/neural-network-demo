@@ -9,10 +9,14 @@
 #endif
 
 #include <iostream>
+#include <cmath>
 
 #include "App.h"
 #include "ShaderProgram.h"
 #include "TriangleMesh.h"
+#include "GeometryUtils.h"
+#include "GLUtils.h"
+#include "Object2D.h"
 
 // ==========================================
 // 1. THE SHADER SOURCE CODE (The "Recipe")
@@ -64,29 +68,8 @@ const char *fragmentShaderSource = "#version 330 core\n"
     "   FragColor = vec4(uColor, 1.0f);\n"
     "}\n\0";
 
-// GLFW will call this when something goes wrong at the windowing/OS level
-void glfw_error_callback(int error, const char* description) {
-    std::cerr << "[GLFW ERROR] code=" << error << ", description=" << description << std::endl;
-}
-
-// Helper to dump OpenGL errors with a label so you can see *where* they came from
-void check_gl_error(const char* label) {
-    GLenum err;
-    bool hadError = false;
-    while ((err = glGetError()) != GL_NO_ERROR) {
-        hadError = true;
-        std::cerr << "[GL ERROR] (" << label << ") code=0x" << std::hex << err << std::dec << std::endl;
-    }
-    if (!hadError) {
-        std::cout << "[GL OK] (" << label << ")" << std::endl;
-    }
-}
-
-// Helper function to resize the viewport if the user resizes the window
-void framebuffer_size_callback(GLFWwindow* window, int width, int height) {
-    std::cout << "[Callback] framebuffer_size_callback: width=" << width << ", height=" << height << std::endl;
-    glViewport(0, 0, width, height);
-}
+// Geometry-related helpers such as worldToLocal, pointInTriangle, and
+// pointInUnitSquare are provided by GeometryUtils.h/.cpp.
 
 App::App()
     : m_window(nullptr) {
@@ -224,24 +207,26 @@ int App::run() {
 
     check_gl_error("After VAO/VBO setup");
 
-    // Initial CPU-side state for uniforms
-    float offsetX = 0.0f;
-    float offsetY = 0.0f;
-    float scale   = 1.0f;
-    float rotation = 0.0f; // in radians
-    float color[3] = {1.0f, 0.5f, 0.2f}; // start with the original orange-ish color
-    std::cout << "[State] Initial offset   = (" << offsetX << ", " << offsetY << ")" << std::endl;
-    std::cout << "[State] Initial scale    = " << scale << std::endl;
-    std::cout << "[State] Initial rotation = " << rotation << " radians" << std::endl;
-    std::cout << "[State] Initial color    = (" << color[0] << ", " << color[1] << ", " << color[2] << ")" << std::endl;
+    // Initial CPU-side state for uniforms, now expressed per object.
+    Object2D objects[2] = {
+        { &triangle, 0.0f, 0.0f, 1.0f, 0.0f, {1.0f, 0.5f, 0.2f} }, // triangle
+        { &square,   0.6f, 0.0f, 0.6f, 0.0f, {0.0f, 0.8f, 0.2f} }  // square
+    };
 
-    // Second object's state (square). For now this is static so we can see
-    // two distinct objects on screen with different transforms/colors.
-    float squareOffsetX = 0.6f;
-    float squareOffsetY = 0.0f;
-    float squareScale   = 0.6f;
-    float squareRotation = 0.0f;
-    float squareColor[3] = {0.0f, 0.8f, 0.2f};
+    std::cout << "[State] Triangle initial offset   = (" << objects[0].offsetX << ", " << objects[0].offsetY << ")" << std::endl;
+    std::cout << "[State] Triangle initial scale    = " << objects[0].scale << std::endl;
+    std::cout << "[State] Triangle initial rotation = " << objects[0].rotation << " radians" << std::endl;
+    std::cout << "[State] Triangle initial color    = (" << objects[0].color[0] << ", " << objects[0].color[1] << ", " << objects[0].color[2] << ")" << std::endl;
+
+    std::cout << "[State] Square   initial offset   = (" << objects[1].offsetX << ", " << objects[1].offsetY << ")" << std::endl;
+    std::cout << "[State] Square   initial scale    = " << objects[1].scale << std::endl;
+    std::cout << "[State] Square   initial rotation = " << objects[1].rotation << " radians" << std::endl;
+    std::cout << "[State] Square   initial color    = (" << objects[1].color[0] << ", " << objects[1].color[1] << ", " << objects[1].color[2] << ")" << std::endl;
+
+    // Selection state: 0 = triangle, 1 = square.
+    int selectedObject = 0;
+    bool leftMousePressedLastFrame = false;
+    bool tabPressedLastFrame = false;
 
     // ==========================================
     // 5. THE GAME LOOP
@@ -256,66 +241,133 @@ int App::run() {
         const float scaleStep     = 0.01f; // how much scale changes per key press
         const float rotationStep  = 0.05f; // radians per key press (~3 degrees)
 
-        // Arrow keys move the triangle by changing the offset uniform
+        // Allow cycling the active object with TAB.
+        int tabState = glfwGetKey(window, GLFW_KEY_TAB);
+        if (tabState == GLFW_PRESS && !tabPressedLastFrame) {
+            selectedObject = (selectedObject + 1) % 2;
+            std::cout << "[Input] TAB -> selectedObject = " << selectedObject << std::endl;
+        }
+        tabPressedLastFrame = (tabState == GLFW_PRESS);
+
+        // Input acts on the currently selected object.
+        Object2D& active = objects[selectedObject];
+
+        // Arrow keys move the active object by changing the offset uniform
         if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS) {
-            offsetY += moveSpeed;
-            std::cout << "[Input] UP    -> offset = (" << offsetX << ", " << offsetY << ")" << std::endl;
+            active.offsetY += moveSpeed;
+            std::cout << "[Input] UP    -> offset = (" << active.offsetX << ", " << active.offsetY << ")" << std::endl;
         }
         if (glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS) {
-            offsetY -= moveSpeed;
-            std::cout << "[Input] DOWN  -> offset = (" << offsetX << ", " << offsetY << ")" << std::endl;
+            active.offsetY -= moveSpeed;
+            std::cout << "[Input] DOWN  -> offset = (" << active.offsetX << ", " << active.offsetY << ")" << std::endl;
         }
         if (glfwGetKey(window, GLFW_KEY_LEFT) == GLFW_PRESS) {
-            offsetX -= moveSpeed;
-            std::cout << "[Input] LEFT  -> offset = (" << offsetX << ", " << offsetY << ")" << std::endl;
+            active.offsetX -= moveSpeed;
+            std::cout << "[Input] LEFT  -> offset = (" << active.offsetX << ", " << active.offsetY << ")" << std::endl;
         }
         if (glfwGetKey(window, GLFW_KEY_RIGHT) == GLFW_PRESS) {
-            offsetX += moveSpeed;
-            std::cout << "[Input] RIGHT -> offset = (" << offsetX << ", " << offsetY << ")" << std::endl;
+            active.offsetX += moveSpeed;
+            std::cout << "[Input] RIGHT -> offset = (" << active.offsetX << ", " << active.offsetY << ")" << std::endl;
         }
 
         // Scale controls (Z/X)
         if (glfwGetKey(window, GLFW_KEY_Z) == GLFW_PRESS) {
-            scale -= scaleStep;
-            if (scale < 0.1f) scale = 0.1f; // avoid inverting/vanishing
-            std::cout << "[Input] Z -> scale = " << scale << std::endl;
+            active.scale -= scaleStep;
+            if (active.scale < 0.1f) active.scale = 0.1f; // avoid inverting/vanishing
+            std::cout << "[Input] Z -> scale = " << active.scale << std::endl;
         }
         if (glfwGetKey(window, GLFW_KEY_X) == GLFW_PRESS) {
-            scale += scaleStep;
-            std::cout << "[Input] X -> scale = " << scale << std::endl;
+            active.scale += scaleStep;
+            std::cout << "[Input] X -> scale = " << active.scale << std::endl;
         }
 
         // Rotation controls (Q/E)
         if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS) {
-            rotation -= rotationStep;
-            std::cout << "[Input] Q -> rotation = " << rotation << " radians" << std::endl;
+            active.rotation -= rotationStep;
+            std::cout << "[Input] Q -> rotation = " << active.rotation << " radians" << std::endl;
         }
         if (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS) {
-            rotation += rotationStep;
-            std::cout << "[Input] E -> rotation = " << rotation << " radians" << std::endl;
+            active.rotation += rotationStep;
+            std::cout << "[Input] E -> rotation = " << active.rotation << " radians" << std::endl;
         }
 
-        // Number keys change the color uniform
+        // Number keys change the color uniform of the active object
         if (glfwGetKey(window, GLFW_KEY_1) == GLFW_PRESS) {
-            color[0] = 1.0f; color[1] = 0.0f; color[2] = 0.0f; // Red
+            active.color[0] = 1.0f; active.color[1] = 0.0f; active.color[2] = 0.0f; // Red
             std::cout << "[Input] 1 -> color = RED" << std::endl;
         }
         if (glfwGetKey(window, GLFW_KEY_2) == GLFW_PRESS) {
-            color[0] = 0.0f; color[1] = 1.0f; color[2] = 0.0f; // Green
+            active.color[0] = 0.0f; active.color[1] = 1.0f; active.color[2] = 0.0f; // Green
             std::cout << "[Input] 2 -> color = GREEN" << std::endl;
         }
         if (glfwGetKey(window, GLFW_KEY_3) == GLFW_PRESS) {
-            color[0] = 0.0f; color[1] = 0.0f; color[2] = 1.0f; // Blue
+            active.color[0] = 0.0f; active.color[1] = 0.0f; active.color[2] = 1.0f; // Blue
             std::cout << "[Input] 3 -> color = BLUE" << std::endl;
         }
         if (glfwGetKey(window, GLFW_KEY_4) == GLFW_PRESS) {
-            color[0] = 1.0f; color[1] = 1.0f; color[2] = 1.0f; // White
+            active.color[0] = 1.0f; active.color[1] = 1.0f; active.color[2] = 1.0f; // White
             std::cout << "[Input] 4 -> color = WHITE" << std::endl;
         }
         if (glfwGetKey(window, GLFW_KEY_5) == GLFW_PRESS) {
-            color[0] = 1.0f; color[1] = 0.5f; color[2] = 0.2f; // Back to original orange
+            active.color[0] = 1.0f; active.color[1] = 0.5f; active.color[2] = 0.2f; // Back to original orange
             std::cout << "[Input] 5 -> color = ORANGE" << std::endl;
         }
+
+        // Mouse picking: on left-click, convert the mouse position from
+        // window coordinates into world/clip space, then into each object's
+        // local coordinates, and test against the original mesh shape.
+        int leftState = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT);
+        if (leftState == GLFW_PRESS && !leftMousePressedLastFrame) {
+            double mouseX, mouseY;
+            glfwGetCursorPos(window, &mouseX, &mouseY);
+
+            int winWidth = 0, winHeight = 0;
+            glfwGetWindowSize(window, &winWidth, &winHeight);
+            if (winWidth > 0 && winHeight > 0) {
+                // Convert from window coordinates (origin at top-left) to
+                // normalized device coordinates in [-1, 1]. We use the
+                // window size here rather than the framebuffer size so the
+                // math matches the coordinate system used by glfwGetCursorPos.
+                float xNdc =  2.0f * static_cast<float>(mouseX) / static_cast<float>(winWidth) - 1.0f;
+                float yNdc =  1.0f - 2.0f * static_cast<float>(mouseY) / static_cast<float>(winHeight);
+
+                // Test triangle first.
+                float triLocalX = 0.0f, triLocalY = 0.0f;
+                worldToLocal(xNdc, yNdc,
+                             objects[0].offsetX, objects[0].offsetY,
+                             objects[0].scale, objects[0].rotation,
+                             triLocalX, triLocalY);
+
+                bool hitTriangle = pointInTriangle(
+                    triLocalX, triLocalY,
+                    vertices[0], vertices[1],
+                    vertices[3], vertices[4],
+                    vertices[6], vertices[7]
+                );
+
+                // Then test square.
+                float squareLocalX = 0.0f, squareLocalY = 0.0f;
+                worldToLocal(xNdc, yNdc,
+                             objects[1].offsetX, objects[1].offsetY,
+                             objects[1].scale, objects[1].rotation,
+                             squareLocalX, squareLocalY);
+
+                bool hitSquare = pointInUnitSquare(squareLocalX, squareLocalY);
+
+                if (hitTriangle && !hitSquare) {
+                    selectedObject = 0;
+                    std::cout << "[Pick] Selected triangle" << std::endl;
+                } else if (!hitTriangle && hitSquare) {
+                    selectedObject = 1;
+                    std::cout << "[Pick] Selected square" << std::endl;
+                } else if (hitTriangle && hitSquare) {
+                    // If both are hit (overlap), prefer the square for now.
+                    selectedObject = 1;
+                    std::cout << "[Pick] Selected square (overlap)" << std::endl;
+                }
+            }
+        }
+        leftMousePressedLastFrame = (leftState == GLFW_PRESS);
 
         // Render Command 1: Clear the screen
         glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
@@ -325,10 +377,18 @@ int App::run() {
         shaderProgram.use();
 
         // Update uniforms every frame so the GPU sees the latest CPU-side values
-        shaderProgram.setVec2(offsetLocation, offsetX, offsetY);
-        shaderProgram.setVec3(colorLocation, color[0], color[1], color[2]);
-        shaderProgram.setFloat(scaleLocation, scale);
-        shaderProgram.setFloat(rotationLocation, rotation);
+        // Triangle color: brighten slightly if selected.
+        float triColor[3] = { objects[0].color[0], objects[0].color[1], objects[0].color[2] };
+        if (selectedObject == 0) {
+            triColor[0] = std::min(1.0f, triColor[0] + 0.2f);
+            triColor[1] = std::min(1.0f, triColor[1] + 0.2f);
+            triColor[2] = std::min(1.0f, triColor[2] + 0.2f);
+        }
+
+        shaderProgram.setVec2(offsetLocation, objects[0].offsetX, objects[0].offsetY);
+        shaderProgram.setVec3(colorLocation, triColor[0], triColor[1], triColor[2]);
+        shaderProgram.setFloat(scaleLocation, objects[0].scale);
+        shaderProgram.setFloat(rotationLocation, objects[0].rotation);
 
         // Render Command 3: Bind the mesh
         triangle.bind();
@@ -339,10 +399,17 @@ int App::run() {
 
         // Second object: square (shares the same shader, but has its own
         // transform and color by using a second set of uniform values).
-        shaderProgram.setVec2(offsetLocation, squareOffsetX, squareOffsetY);
-        shaderProgram.setVec3(colorLocation, squareColor[0], squareColor[1], squareColor[2]);
-        shaderProgram.setFloat(scaleLocation, squareScale);
-        shaderProgram.setFloat(rotationLocation, squareRotation);
+        float sqColor[3] = { objects[1].color[0], objects[1].color[1], objects[1].color[2] };
+        if (selectedObject == 1) {
+            sqColor[0] = std::min(1.0f, sqColor[0] + 0.2f);
+            sqColor[1] = std::min(1.0f, sqColor[1] + 0.2f);
+            sqColor[2] = std::min(1.0f, sqColor[2] + 0.2f);
+        }
+
+        shaderProgram.setVec2(offsetLocation, objects[1].offsetX, objects[1].offsetY);
+        shaderProgram.setVec3(colorLocation, sqColor[0], sqColor[1], sqColor[2]);
+        shaderProgram.setFloat(scaleLocation, objects[1].scale);
+        shaderProgram.setFloat(rotationLocation, objects[1].rotation);
 
         square.bind();
         square.draw();

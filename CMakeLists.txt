@@ -15,6 +15,8 @@ add_executable(HelloTriangle
     ShaderProgram.cpp
     TriangleMesh.cpp
     App.cpp
+    GLUtils.cpp
+    GeometryUtils.cpp
 )
 
 # Link the libraries
