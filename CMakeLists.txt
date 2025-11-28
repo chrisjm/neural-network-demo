@@ -16,6 +16,7 @@ add_executable(HelloTriangle
     TriangleMesh.cpp
     App.cpp
     GLUtils.cpp
+    Input.cpp
     GeometryUtils.cpp
 )
 
