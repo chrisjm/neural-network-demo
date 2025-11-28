@@ -199,7 +199,20 @@ int App::run() {
          0.0f,  0.5f, 0.0f  // Top   (Top-Center)
     };
 
+    // A second mesh: a square made of two triangles (6 vertices)
+    float squareVertices[] = {
+        // First triangle
+        -0.5f, -0.5f, 0.0f,
+         0.5f, -0.5f, 0.0f,
+         0.5f,  0.5f, 0.0f,
+        // Second triangle
+        -0.5f, -0.5f, 0.0f,
+         0.5f,  0.5f, 0.0f,
+        -0.5f,  0.5f, 0.0f
+    };
+
     unsigned int VBO, VAO;
+    unsigned int squareVBO, squareVAO;
     // Generate IDs for buffers
     // 1. Bind the Vertex Array Object first
     // 2. Copy our vertices array in a buffer for OpenGL to use
@@ -207,6 +220,7 @@ int App::run() {
     // 3. Set the vertex attribute pointers
     // Tell the GPU how to interpret the raw binary data (It's 3 floats per vertex)
     TriangleMesh triangle(vertices, 3, VAO, VBO);
+    TriangleMesh square(squareVertices, 6, squareVAO, squareVBO);
 
     check_gl_error("After VAO/VBO setup");
 
@@ -220,6 +234,14 @@ int App::run() {
     std::cout << "[State] Initial scale    = " << scale << std::endl;
     std::cout << "[State] Initial rotation = " << rotation << " radians" << std::endl;
     std::cout << "[State] Initial color    = (" << color[0] << ", " << color[1] << ", " << color[2] << ")" << std::endl;
+
+    // Second object's state (square). For now this is static so we can see
+    // two distinct objects on screen with different transforms/colors.
+    float squareOffsetX = 0.6f;
+    float squareOffsetY = 0.0f;
+    float squareScale   = 0.6f;
+    float squareRotation = 0.0f;
+    float squareColor[3] = {0.0f, 0.8f, 0.2f};
 
     // ==========================================
     // 5. THE GAME LOOP
@@ -315,6 +337,16 @@ int App::run() {
         // "Draw 3 vertices starting from index 0"
         triangle.draw();
 
+        // Second object: square (shares the same shader, but has its own
+        // transform and color by using a second set of uniform values).
+        shaderProgram.setVec2(offsetLocation, squareOffsetX, squareOffsetY);
+        shaderProgram.setVec3(colorLocation, squareColor[0], squareColor[1], squareColor[2]);
+        shaderProgram.setFloat(scaleLocation, squareScale);
+        shaderProgram.setFloat(rotationLocation, squareRotation);
+
+        square.bind();
+        square.draw();
+
         // Swap buffers (Double buffering prevents flickering)
         glfwSwapBuffers(window);
         glfwPollEvents();
@@ -323,6 +355,8 @@ int App::run() {
     // Cleanup
     glDeleteVertexArrays(1, &VAO);
     glDeleteBuffers(1, &VBO);
+    glDeleteVertexArrays(1, &squareVAO);
+    glDeleteBuffers(1, &squareVBO);
 
     glfwTerminate();
     return 0;
