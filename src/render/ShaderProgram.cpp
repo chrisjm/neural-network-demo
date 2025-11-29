@@ -99,3 +99,9 @@ void ShaderProgram::setFloat(int location, float value) const {
         glUniform1f(location, value);
     }
 }
+
+void ShaderProgram::setFloatArray(int location, const float* data, int count) const {
+    if (location != -1 && data != nullptr && count > 0) {
+        glUniform1fv(location, count, data);
+    }
+}

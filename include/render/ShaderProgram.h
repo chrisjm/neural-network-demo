@@ -13,6 +13,7 @@ public:
     void setVec2(int location, float x, float y) const;
     void setVec3(int location, float x, float y, float z) const;
     void setFloat(int location, float value) const;
+    void setFloatArray(int location, const float* data, int count) const;
 
     ShaderProgram(const ShaderProgram&) = delete;
     ShaderProgram& operator=(const ShaderProgram&) = delete;

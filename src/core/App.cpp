@@ -121,20 +121,79 @@ const char *gridFragmentShaderSource = "#version 330 core\n"
 
 const char *fieldVertexShaderSource = "#version 330 core\n"
     "layout (location = 0) in vec2 aPos;\n"
-    "layout (location = 1) in vec3 aColor;\n"
-    "out vec3 vColor;\n"
+    "out vec2 vPos;\n"
     "void main()\n"
     "{\n"
+    "    vPos = aPos;\n"
     "    gl_Position = vec4(aPos, 0.0, 1.0);\n"
-    "    vColor = aColor;\n"
     "}\n\0";
 
 const char *fieldFragmentShaderSource = "#version 330 core\n"
-    "in vec3 vColor;\n"
+    "in vec2 vPos;\n"
     "out vec4 FragColor;\n"
+    "const int INPUT_DIM  = 2;\n"
+    "const int HIDDEN1    = 16;\n"
+    "const int HIDDEN2    = 16;\n"
+    "const int OUTPUT_DIM = 2;\n"
+    "uniform float u_W1[HIDDEN1 * INPUT_DIM];\n"
+    "uniform float u_b1[HIDDEN1];\n"
+    "uniform float u_W2[HIDDEN2 * HIDDEN1];\n"
+    "uniform float u_b2[HIDDEN2];\n"
+    "uniform float u_W3[OUTPUT_DIM * HIDDEN2];\n"
+    "uniform float u_b3[OUTPUT_DIM];\n"
     "void main()\n"
     "{\n"
-    "    FragColor = vec4(vColor, 0.4);\n"
+    "    float a0[INPUT_DIM];\n"
+    "    a0[0] = vPos.x;\n"
+    "    a0[1] = vPos.y;\n"
+    "    float a1[HIDDEN1];\n"
+    "    for (int j = 0; j < HIDDEN1; ++j) {\n"
+    "        float sum = u_b1[j];\n"
+    "        for (int i = 0; i < INPUT_DIM; ++i) {\n"
+    "            int idx = j * INPUT_DIM + i;\n"
+    "            sum += u_W1[idx] * a0[i];\n"
+    "        }\n"
+    "        a1[j] = max(sum, 0.0);\n"
+    "    }\n"
+    "    float a2[HIDDEN2];\n"
+    "    for (int j = 0; j < HIDDEN2; ++j) {\n"
+    "        float sum = u_b2[j];\n"
+    "        for (int i = 0; i < HIDDEN1; ++i) {\n"
+    "            int idx = j * HIDDEN1 + i;\n"
+    "            sum += u_W2[idx] * a1[i];\n"
+    "        }\n"
+    "        a2[j] = max(sum, 0.0);\n"
+    "    }\n"
+    "    float logits[OUTPUT_DIM];\n"
+    "    float maxLogit = -1e30;\n"
+    "    for (int k = 0; k < OUTPUT_DIM; ++k) {\n"
+    "        float sum = u_b3[k];\n"
+    "        for (int j = 0; j < HIDDEN2; ++j) {\n"
+    "            int idx = k * HIDDEN2 + j;\n"
+    "            sum += u_W3[idx] * a2[j];\n"
+    "        }\n"
+    "        logits[k] = sum;\n"
+    "        if (sum > maxLogit) maxLogit = sum;\n"
+    "    }\n"
+    "    float expSum = 0.0;\n"
+    "    float probs[OUTPUT_DIM];\n"
+    "    for (int k = 0; k < OUTPUT_DIM; ++k) {\n"
+    "        float e = exp(logits[k] - maxLogit);\n"
+    "        probs[k] = e;\n"
+    "        expSum += e;\n"
+    "    }\n"
+    "    if (expSum <= 0.0) {\n"
+    "        FragColor = vec4(0.5, 0.5, 0.5, 0.4);\n"
+    "        return;\n"
+    "    }\n"
+    "    for (int k = 0; k < OUTPUT_DIM; ++k) {\n"
+    "        probs[k] /= expSum;\n"
+    "    }\n"
+    "    float p1 = probs[1];\n"
+    "    vec3 c0 = vec3(0.2, 0.6, 1.0);\n"
+    "    vec3 c1 = vec3(1.0, 0.5, 0.2);\n"
+    "    vec3 color = mix(c0, c1, p1);\n"
+    "    FragColor = vec4(color, 0.4);\n"
     "}\n\0";
 
 App::App()
@@ -236,6 +295,12 @@ int App::run() {
 
     // Shader for decision-boundary background field.
     ShaderProgram fieldShader(fieldVertexShaderSource, fieldFragmentShaderSource);
+    int fieldW1Location = glGetUniformLocation(fieldShader.getId(), "u_W1");
+    int fieldB1Location = glGetUniformLocation(fieldShader.getId(), "u_b1");
+    int fieldW2Location = glGetUniformLocation(fieldShader.getId(), "u_W2");
+    int fieldB2Location = glGetUniformLocation(fieldShader.getId(), "u_b2");
+    int fieldW3Location = glGetUniformLocation(fieldShader.getId(), "u_W3");
+    int fieldB3Location = glGetUniformLocation(fieldShader.getId(), "u_b3");
 
     // ==========================================
     // 4. LOAD ASSETS (Sending Mesh to VRAM)
@@ -313,13 +378,19 @@ int App::run() {
         }
 
         if (fieldVis.isDirty()) {
-            fieldVis.update(trainer.net);
+            fieldVis.update();
         }
 
         glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
 
         fieldShader.use();
+        fieldShader.setFloatArray(fieldW1Location, trainer.net.W1.data(), static_cast<int>(trainer.net.W1.size()));
+        fieldShader.setFloatArray(fieldB1Location, trainer.net.b1.data(), static_cast<int>(trainer.net.b1.size()));
+        fieldShader.setFloatArray(fieldW2Location, trainer.net.W2.data(), static_cast<int>(trainer.net.W2.size()));
+        fieldShader.setFloatArray(fieldB2Location, trainer.net.b2.data(), static_cast<int>(trainer.net.b2.size()));
+        fieldShader.setFloatArray(fieldW3Location, trainer.net.W3.data(), static_cast<int>(trainer.net.W3.size()));
+        fieldShader.setFloatArray(fieldB3Location, trainer.net.b3.data(), static_cast<int>(trainer.net.b3.size()));
         fieldVis.draw();
 
         gridShader.use();

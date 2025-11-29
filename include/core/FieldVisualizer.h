@@ -2,14 +2,12 @@
 
 #include <vector>
 
-class ToyNet;
-
 class FieldVisualizer {
 public:
     FieldVisualizer();
 
     void init(int resolution);
-    void update(const ToyNet& net);
+    void update();
     void draw() const;
     void setDirty();
     bool isDirty() const;
@@ -23,5 +21,4 @@ private:
     unsigned int m_vbo;
     bool m_dirty;
     std::vector<float> m_vertexData;
-    std::vector<float> m_probs;
 };
