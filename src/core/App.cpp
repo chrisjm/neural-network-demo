@@ -16,11 +16,7 @@
 
 #include "App.h"
 #include "ShaderProgram.h"
-#include "TriangleMesh.h"
-#include "GeometryUtils.h"
 #include "GLUtils.h"
-#include "Object2D.h"
-#include "Input.h"
 
 // ==========================================
 // 1. THE SHADER SOURCE CODE (The "Recipe")
@@ -75,6 +71,32 @@ const char *fragmentShaderSource = "#version 330 core\n"
 // Geometry-related helpers such as worldToLocal, pointInTriangle, and
 // pointInUnitSquare are provided by GeometryUtils.h/.cpp.
 
+// Point sprite shaders for scatter plot rendering.
+const char *pointVertexShaderSource = "#version 330 core\n"
+    "layout (location = 0) in vec2 aPos;\n"
+    "layout (location = 1) in float aLabel;\n"
+    "flat out int vLabel;\n"
+    "uniform float uPointSize;\n"
+    "void main()\n"
+    "{\n"
+    "    gl_Position = vec4(aPos, 0.0, 1.0);\n"
+    "    vLabel = int(aLabel + 0.5);\n"
+    "    gl_PointSize = uPointSize;\n"
+    "}\n\0";
+
+const char *pointFragmentShaderSource = "#version 330 core\n"
+    "flat in int vLabel;\n"
+    "out vec4 FragColor;\n"
+    "uniform vec3 uColorClass0;\n"
+    "uniform vec3 uColorClass1;\n"
+    "void main()\n"
+    "{\n"
+    "    vec2 d = gl_PointCoord - vec2(0.5);\n"
+    "    if (dot(d, d) > 0.25) discard;\n"
+    "    vec3 color = (vLabel == 0) ? uColorClass0 : uColorClass1;\n"
+    "    FragColor = vec4(color, 1.0);\n"
+    "}\n\0";
+
 App::App()
     : m_window(nullptr) {
 }
@@ -118,6 +140,8 @@ bool App::init() {
         return false;
     }
 
+    glEnable(GL_PROGRAM_POINT_SIZE);
+
     check_gl_error("After GLAD initialization");
 
     // Query and log basic OpenGL information (now that GLAD is initialized)
@@ -155,230 +179,159 @@ int App::run() {
     // 3. BUILD SHADERS (Compiling Logic)
     // ==========================================
 
-    // A. Compile Vertex Shader
-    // B. Compile Fragment Shader
-    // C. Link Shaders into a "Program"
-    // This links the Vertex and Fragment stages into a single executable pipeline.
-    ShaderProgram shaderProgram(vertexShaderSource, fragmentShaderSource);
+    // Point sprite shader program for scatter plot rendering.
+    ShaderProgram pointShader(pointVertexShaderSource, pointFragmentShaderSource);
 
-    check_gl_error("After shader program link");
+    check_gl_error("After point shader program link");
 
-    // Query uniform locations so we can drive them from the CPU
-    int offsetLocation   = glGetUniformLocation(shaderProgram.getId(), "uOffset");
-    int colorLocation    = glGetUniformLocation(shaderProgram.getId(), "uColor");
-    int scaleLocation    = glGetUniformLocation(shaderProgram.getId(), "uScale");
-    int rotationLocation = glGetUniformLocation(shaderProgram.getId(), "uRotation");
-    if (offsetLocation == -1) {
-        std::cout << "[Uniform] Warning: uOffset not found (might be optimized out if unused)" << std::endl;
-    } else {
-        std::cout << "[Uniform] uOffset location = " << offsetLocation << std::endl;
-    }
-    if (colorLocation == -1) {
-        std::cout << "[Uniform] Warning: uColor not found (might be optimized out if unused)" << std::endl;
-    } else {
-        std::cout << "[Uniform] uColor location  = " << colorLocation << std::endl;
-    }
-    if (scaleLocation == -1) {
-        std::cout << "[Uniform] Warning: uScale not found (might be optimized out if unused)" << std::endl;
-    } else {
-        std::cout << "[Uniform] uScale location  = " << scaleLocation << std::endl;
-    }
-    if (rotationLocation == -1) {
-        std::cout << "[Uniform] Warning: uRotation not found (might be optimized out if unused)" << std::endl;
-    } else {
-        std::cout << "[Uniform] uRotation location  = " << rotationLocation << std::endl;
-    }
+    int pointSizeLocation    = glGetUniformLocation(pointShader.getId(), "uPointSize");
+    int colorClass0Location  = glGetUniformLocation(pointShader.getId(), "uColorClass0");
+    int colorClass1Location  = glGetUniformLocation(pointShader.getId(), "uColorClass1");
 
     // ==========================================
     // 4. LOAD ASSETS (Sending Mesh to VRAM)
     // ==========================================
 
-    // The data: 3 vertices (X, Y, Z)
-    float vertices[] = {
-        -0.5f, -0.5f, 0.0f, // Left  (Bottom-Left)
-         0.5f, -0.5f, 0.0f, // Right (Bottom-Right)
-         0.0f,  0.5f, 0.0f  // Top   (Top-Center)
+    // Dataset of 2D points with class labels.
+    struct DataPoint {
+        float x;
+        float y;
+        int   label;
     };
 
-    // A second mesh: a square made of two triangles (6 vertices)
-    float squareVertices[] = {
-        // First triangle
-        -0.5f, -0.5f, 0.0f,
-         0.5f, -0.5f, 0.0f,
-         0.5f,  0.5f, 0.0f,
-        // Second triangle
-        -0.5f, -0.5f, 0.0f,
-         0.5f,  0.5f, 0.0f,
-        -0.5f,  0.5f, 0.0f
+    std::vector<DataPoint> dataset;
+
+    auto generateTwoBlobs = [](int numPoints, float spread, std::vector<DataPoint>& out) {
+        out.clear();
+        out.reserve(static_cast<size_t>(numPoints));
+
+        int half = numPoints / 2;
+        auto rand01 = []() {
+            return static_cast<float>(std::rand()) / static_cast<float>(RAND_MAX);
+        };
+
+        for (int i = 0; i < half; ++i) {
+            float angle = rand01() * 2.0f * static_cast<float>(M_PI);
+            float radius = spread * rand01();
+            float cx = -0.5f;
+            float cy = 0.0f;
+            float x = cx + std::cos(angle) * radius;
+            float y = cy + std::sin(angle) * radius;
+            out.push_back({x, y, 0});
+        }
+
+        for (int i = half; i < numPoints; ++i) {
+            float angle = rand01() * 2.0f * static_cast<float>(M_PI);
+            float radius = spread * rand01();
+            float cx = 0.5f;
+            float cy = 0.0f;
+            float x = cx + std::cos(angle) * radius;
+            float y = cy + std::sin(angle) * radius;
+            out.push_back({x, y, 1});
+        }
     };
 
-    unsigned int VBO, VAO;
-    unsigned int squareVBO, squareVAO;
-    // Generate IDs for buffers
-    // 1. Bind the Vertex Array Object first
-    // 2. Copy our vertices array in a buffer for OpenGL to use
-    // THIS IS THE MOMENT we move data from RAM -> VRAM
-    // 3. Set the vertex attribute pointers
-    // Tell the GPU how to interpret the raw binary data (It's 3 floats per vertex)
-    TriangleMesh triangle(vertices, 3, VAO, VBO);
-    TriangleMesh square(squareVertices, 6, squareVAO, squareVBO);
+    unsigned int pointVAO = 0;
+    unsigned int pointVBO = 0;
+    glGenVertexArrays(1, &pointVAO);
+    glGenBuffers(1, &pointVBO);
 
-    check_gl_error("After VAO/VBO setup");
+    glBindVertexArray(pointVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, pointVBO);
 
-    // Initial CPU-side state for uniforms, now expressed per object.
-    Object2D objects[2] = {
-        { &triangle, 0.0f, 0.0f, 1.0f, 0.0f, {1.0f, 0.5f, 0.2f} }, // triangle
-        { &square,   0.6f, 0.0f, 0.6f, 0.0f, {0.0f, 0.8f, 0.2f} }  // square
+    int maxPoints = 5000;
+    glBufferData(GL_ARRAY_BUFFER, static_cast<GLsizeiptr>(maxPoints * 3 * sizeof(float)), nullptr, GL_DYNAMIC_DRAW);
+
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 3 * sizeof(float), reinterpret_cast<void*>(0));
+
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(1, 1, GL_FLOAT, GL_FALSE, 3 * sizeof(float), reinterpret_cast<void*>(2 * sizeof(float)));
+
+    glBindVertexArray(0);
+
+    auto uploadDatasetToGPU = [&](const std::vector<DataPoint>& data) {
+        std::vector<float> buffer;
+        buffer.reserve(data.size() * 3);
+        for (const auto& p : data) {
+            buffer.push_back(p.x);
+            buffer.push_back(p.y);
+            buffer.push_back(static_cast<float>(p.label));
+        }
+        glBindBuffer(GL_ARRAY_BUFFER, pointVBO);
+        glBufferSubData(GL_ARRAY_BUFFER, 0, static_cast<GLsizeiptr>(buffer.size() * sizeof(float)), buffer.data());
     };
 
-    std::cout << "[State] Triangle initial offset   = (" << objects[0].offsetX << ", " << objects[0].offsetY << ")" << std::endl;
-    std::cout << "[State] Triangle initial scale    = " << objects[0].scale << std::endl;
-    std::cout << "[State] Triangle initial rotation = " << objects[0].rotation << " radians" << std::endl;
-    std::cout << "[State] Triangle initial color    = (" << objects[0].color[0] << ", " << objects[0].color[1] << ", " << objects[0].color[2] << ")" << std::endl;
+    int   uiNumPoints = 1000;
+    float uiSpread    = 0.25f;
+    float uiPointSize = 6.0f;
 
-    std::cout << "[State] Square   initial offset   = (" << objects[1].offsetX << ", " << objects[1].offsetY << ")" << std::endl;
-    std::cout << "[State] Square   initial scale    = " << objects[1].scale << std::endl;
-    std::cout << "[State] Square   initial rotation = " << objects[1].rotation << " radians" << std::endl;
-    std::cout << "[State] Square   initial color    = (" << objects[1].color[0] << ", " << objects[1].color[1] << ", " << objects[1].color[2] << ")" << std::endl;
-
-    Object2D initialObjects[2] = { objects[0], objects[1] };
-
-    MouseDebugState mouseDebug{};
-
-    // Selection state: 0 = triangle, 1 = square.
-    int selectedObject = 0;
-    bool leftMousePressedLastFrame = false;
-    bool tabPressedLastFrame = false;
+    generateTwoBlobs(uiNumPoints, uiSpread, dataset);
+    uploadDatasetToGPU(dataset);
 
     // ==========================================
     // 5. THE GAME LOOP
     // ==========================================
     std::cout << "[Loop] Entering render loop" << std::endl;
     while (!glfwWindowShouldClose(window)) {
-        // Input
         if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
             glfwSetWindowShouldClose(window, true);
-
-        // Keyboard and mouse input are handled in a separate module so we
-        // can evolve interactions (e.g., drag-and-drop) independently of
-        // the rendering and app structure.
-        handleKeyboardInput(window, objects, 2, selectedObject, tabPressedLastFrame);
-        handleMouseInput(window, objects, 2, selectedObject, leftMousePressedLastFrame, vertices, &mouseDebug);
 
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
 
-        // Debug window with per-object state and controls.
-        ImGui::Begin("Debug");
+        ImGui::Begin("Neural Net Demo");
 
-        const char* objectNames[2] = { "Triangle", "Square" };
-        ImGui::Text("Selected: %s (%d)", objectNames[selectedObject], selectedObject);
-
-        // Allow changing the selected object from the UI.
-        if (ImGui::RadioButton("Triangle", selectedObject == 0)) {
-            selectedObject = 0;
-        }
-        ImGui::SameLine();
-        if (ImGui::RadioButton("Square", selectedObject == 1)) {
-            selectedObject = 1;
+        bool regenerate = false;
+        regenerate |= ImGui::SliderInt("Points", &uiNumPoints, 100, 5000);
+        regenerate |= ImGui::SliderFloat("Spread", &uiSpread, 0.01f, 0.5f);
+        if (ImGui::Button("Regenerate Data")) {
+            regenerate = true;
         }
 
-        ImGui::Separator();
-
-        for (int i = 0; i < 2; ++i) {
-            Object2D& obj = objects[i];
-            ImGui::PushID(i); // ensure widget IDs under this scope are unique per object
-            if (ImGui::TreeNode(objectNames[i])) {
-                if (ImGui::Button("Reset")) {
-                    obj = initialObjects[i];
-                }
-                ImGui::Separator();
-                ImGui::SliderFloat2("Offset", &obj.offsetX, -1.0f, 1.0f);
-                ImGui::SliderFloat("Scale", &obj.scale, 0.1f, 2.0f);
-                ImGui::SliderAngle("Rotation", &obj.rotation, -180.0f, 180.0f);
-                ImGui::ColorEdit3("Color", obj.color);
-                ImGui::TreePop();
-            }
-            ImGui::PopID();
+        if (regenerate) {
+            if (uiNumPoints < 10) uiNumPoints = 10;
+            if (uiNumPoints > maxPoints) uiNumPoints = maxPoints;
+            generateTwoBlobs(uiNumPoints, uiSpread, dataset);
+            uploadDatasetToGPU(dataset);
         }
 
         ImGui::Separator();
+        ImGui::SliderFloat("Point Size", &uiPointSize, 2.0f, 12.0f);
 
-        ImGui::Text("Mouse debug");
-        if (!mouseDebug.hasClick) {
-            ImGui::Text("No click yet");
-        } else {
-            ImGui::Text("Window: (%.1f, %.1f)", mouseDebug.mouseX, mouseDebug.mouseY);
-            ImGui::Text("NDC:    (%.3f, %.3f)", mouseDebug.xNdc, mouseDebug.yNdc);
-            ImGui::Text("Triangle local: (%.3f, %.3f) %s",
-                        mouseDebug.triLocalX, mouseDebug.triLocalY,
-                        mouseDebug.hitTriangle ? "[hit]" : "[miss]");
-            ImGui::Text("Square   local: (%.3f, %.3f) %s",
-                        mouseDebug.squareLocalX, mouseDebug.squareLocalY,
-                        mouseDebug.hitSquare ? "[hit]" : "[miss]");
-        }
+        ImGui::Text("Current points: %d", static_cast<int>(dataset.size()));
 
         ImGui::End();
 
-        // Render Command 1: Clear the screen
         glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
 
-        // Render Command 2: Use our compiled shader program
-        shaderProgram.use();
+        pointShader.use();
 
-        // Update uniforms every frame so the GPU sees the latest CPU-side values
-        // Triangle color: brighten slightly if selected.
-        float triColor[3] = { objects[0].color[0], objects[0].color[1], objects[0].color[2] };
-        if (selectedObject == 0) {
-            triColor[0] = std::min(1.0f, triColor[0] + 0.2f);
-            triColor[1] = std::min(1.0f, triColor[1] + 0.2f);
-            triColor[2] = std::min(1.0f, triColor[2] + 0.2f);
+        if (pointSizeLocation != -1) {
+            pointShader.setFloat(pointSizeLocation, uiPointSize);
+        }
+        if (colorClass0Location != -1) {
+            pointShader.setVec3(colorClass0Location, 0.2f, 0.6f, 1.0f);
+        }
+        if (colorClass1Location != -1) {
+            pointShader.setVec3(colorClass1Location, 1.0f, 0.5f, 0.2f);
         }
 
-        shaderProgram.setVec2(offsetLocation, objects[0].offsetX, objects[0].offsetY);
-        shaderProgram.setVec3(colorLocation, triColor[0], triColor[1], triColor[2]);
-        shaderProgram.setFloat(scaleLocation, objects[0].scale);
-        shaderProgram.setFloat(rotationLocation, objects[0].rotation);
-
-        // Render Command 3: Bind the mesh
-        triangle.bind();
-
-        // Render Command 4: DRAW!
-        // "Draw 3 vertices starting from index 0"
-        triangle.draw();
-
-        // Second object: square (shares the same shader, but has its own
-        // transform and color by using a second set of uniform values).
-        float sqColor[3] = { objects[1].color[0], objects[1].color[1], objects[1].color[2] };
-        if (selectedObject == 1) {
-            sqColor[0] = std::min(1.0f, sqColor[0] + 0.2f);
-            sqColor[1] = std::min(1.0f, sqColor[1] + 0.2f);
-            sqColor[2] = std::min(1.0f, sqColor[2] + 0.2f);
-        }
-
-        shaderProgram.setVec2(offsetLocation, objects[1].offsetX, objects[1].offsetY);
-        shaderProgram.setVec3(colorLocation, sqColor[0], sqColor[1], sqColor[2]);
-        shaderProgram.setFloat(scaleLocation, objects[1].scale);
-        shaderProgram.setFloat(rotationLocation, objects[1].rotation);
-
-        square.bind();
-        square.draw();
+        glBindVertexArray(pointVAO);
+        glDrawArrays(GL_POINTS, 0, static_cast<GLsizei>(dataset.size()));
+        glBindVertexArray(0);
 
         ImGui::Render();
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
-        // Swap buffers (Double buffering prevents flickering)
         glfwSwapBuffers(window);
         glfwPollEvents();
     }
 
-    // Cleanup
-    glDeleteVertexArrays(1, &VAO);
-    glDeleteBuffers(1, &VBO);
-    glDeleteVertexArrays(1, &squareVAO);
-    glDeleteBuffers(1, &squareVBO);
+    glDeleteVertexArrays(1, &pointVAO);
+    glDeleteBuffers(1, &pointVBO);
 
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplGlfw_Shutdown();
