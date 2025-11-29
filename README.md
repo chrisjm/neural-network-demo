@@ -147,14 +147,25 @@ The "Neural Net Controls" ImGui window lets you:
     - Its index, coordinates, and class label.
     - The predicted probabilities `p0` and `p1` and the predicted class.
 
-- **Training controls**
-  - `Learning Rate` slider controls the gradient descent step size.
-  - `Batch Size` slider controls how many samples are used per training step.
-  - `Step Train` runs a single SGD step.
-  - `Auto Train` toggles continuous training.
-  - `Step`, `Loss`, and `Accuracy` display the latest training stats.
-  - `Auto Max Steps` and `Auto Target Loss` set stopping criteria for auto training.
-  - **Loss Plot** and **Accuracy Plot** windows track training history over time.
+-- **Training controls**
+
+- `Learning Rate` slider controls how big each weight update step is.
+- `Batch Size` slider controls how many samples are used per training step.
+- `Optimizer` combo selects how gradients are turned into weight updates:
+  - `SGD` – plain stochastic gradient descent.
+  - `SGD + Momentum` – adds a "velocity" term that smooths noisy gradients and helps push through shallow regions.
+  - `Adam` – adaptive optimizer that keeps moving averages of gradients and their squares (β1, β2) for per-parameter step sizes.
+- When `SGD + Momentum` is selected:
+  - `Momentum` controls how strongly the optimizer keeps moving in the previous update direction (0 = no momentum, close to 1 = very smooth but can overshoot).
+- When `Adam` is selected:
+  - `Adam Beta1` controls how quickly the first-moment (mean gradient) estimate forgets old information.
+  - `Adam Beta2` controls how quickly the second-moment (squared-gradient) estimate forgets old information.
+  - `Adam Eps` is a small constant added inside the square root to keep divisions numerically stable.
+- `Step Train` runs a single training step with the current optimizer.
+- `Auto Train` toggles continuous training.
+- `Step`, `Loss`, and `Accuracy` display the latest training stats.
+- `Auto Max Steps` and `Auto Target Loss` set stopping criteria for auto training.
+- **Loss Plot** and **Accuracy Plot** windows track training history over time.
 
 ### Network diagram
 
@@ -192,12 +203,12 @@ The core neural network is implemented in **`ToyNet`**:
   - Loss: cross-entropy over the correct class, averaged over the batch.
   - Accuracy: fraction of samples where `argmax(p)` equals the true label.
 
-- Backpropagation:
+-- Backpropagation:
 
-  - Uses **softmax + cross-entropy gradient**: `dL/dz3 = p − y`.
-  - Propagates gradients through each layer, applying ReLU derivative (`1` if pre-activation > 0, else `0`).
-  - Accumulates gradients for all weights and biases across the batch.
-  - Averages gradients, then does a simple SGD update with learning rate `m_learningRate`.
+- Uses **softmax + cross-entropy gradient**: `dL/dz3 = p − y`.
+- Propagates gradients through each layer, applying ReLU derivative (`1` if pre-activation > 0, else `0`).
+- Accumulates gradients for all weights and biases across the batch.
+- Averages gradients, then applies an optimizer step (SGD, SGD + Momentum, or Adam) using the current learning rate and optimizer hyperparameters.
 
 - Single-sample forward (`forwardSingle` / `forwardSingleWithActivations`):
   - Runs the same math as above for one `(x, y)` pair.
@@ -206,7 +217,8 @@ The core neural network is implemented in **`ToyNet`**:
 
 **`Trainer`** wraps `ToyNet` and adds:
 
-- Configurable `learningRate`, `batchSize`, `autoTrain`, stopping conditions.
+- Configurable `learningRate`, `batchSize`, optimizer type (`SGD`, `SGD + Momentum`, `Adam`), and optimizer hyperparameters (`momentum`, `adamBeta1`, `adamBeta2`, `adamEps`).
+- Auto-training controls (`autoTrain`, stopping conditions).
 - History buffers for loss and accuracy for plotting.
 - Functions to create mini-batches and perform one or many training steps.
 

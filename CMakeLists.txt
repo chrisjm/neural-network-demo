@@ -28,6 +28,7 @@ add_executable(NeuralNetDemo
     src/core/FieldVisualizer.cpp
     src/core/PlotGeometry.cpp
     src/core/Trainer.cpp
+    src/core/Optimizer.cpp
     src/core/NetworkVisualizer.cpp
     src/core/ControlPanel.cpp
     src/core/GeometryUtils.cpp

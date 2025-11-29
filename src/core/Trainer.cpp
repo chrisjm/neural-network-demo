@@ -6,6 +6,11 @@ Trainer::Trainer()
     , autoTrain(false)
     , autoMaxSteps(2000)
     , autoTargetLoss(0.01f)
+    , optimizerType(OptimizerType::SGD)
+    , momentum(0.9f)
+    , adamBeta1(0.9f)
+    , adamBeta2(0.999f)
+    , adamEps(1e-8f)
     , stepCount(0)
     , lastLoss(0.0f)
     , lastAccuracy(0.0f)
@@ -18,6 +23,8 @@ Trainer::Trainer()
         accuracyHistory[i] = 0.0f;
     }
     net.resetParameters();
+    net.setOptimizer(optimizerType);
+    net.setOptimizerHyperparams(momentum, adamBeta1, adamBeta2, adamEps);
 }
 
 void Trainer::resetForNewDataset()
@@ -66,6 +73,8 @@ void Trainer::stepOnce(const std::vector<DataPoint>& dataset)
     }
 
     net.setLearningRate(learningRate);
+    net.setOptimizer(optimizerType);
+    net.setOptimizerHyperparams(momentum, adamBeta1, adamBeta2, adamEps);
 
     makeBatch(dataset);
 

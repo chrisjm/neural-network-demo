@@ -3,6 +3,7 @@
 #include <vector>
 
 #include "DataPoint.h"
+#include "Optimizer.h"
 
 struct ToyNet {
 public:
@@ -28,6 +29,9 @@ public:
     void setLearningRate(float lr);
     float getLearningRate() const;
 
+    void setOptimizer(OptimizerType type);
+    void setOptimizerHyperparams(float momentum, float beta1, float beta2, float eps);
+
     const std::vector<float>& getW1() const;
     const std::vector<float>& getB1() const;
     const std::vector<float>& getW2() const;
@@ -37,6 +41,13 @@ public:
 
 private:
     float m_learningRate;
+
+    OptimizerType m_optimizerType;
+    float         m_momentum;
+    float         m_adamBeta1;
+    float         m_adamBeta2;
+    float         m_adamEps;
+    int           m_adamStep;
 
     std::vector<float> m_W1;
     std::vector<float> m_b1;
@@ -59,4 +70,18 @@ private:
     std::vector<float> m_db2;
     std::vector<float> m_dW3;
     std::vector<float> m_db3;
+
+    std::vector<float> m_mW1;
+    std::vector<float> m_mb1;
+    std::vector<float> m_mW2;
+    std::vector<float> m_mb2;
+    std::vector<float> m_mW3;
+    std::vector<float> m_mb3;
+
+    std::vector<float> m_vW1;
+    std::vector<float> m_vb1;
+    std::vector<float> m_vW2;
+    std::vector<float> m_vb2;
+    std::vector<float> m_vW3;
+    std::vector<float> m_vb3;
 };

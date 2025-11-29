@@ -18,7 +18,13 @@ inline float relu(float x) {
 }
 
 ToyNet::ToyNet()
-    : m_learningRate(0.1f) {
+    : m_learningRate(0.1f)
+    , m_optimizerType(OptimizerType::SGD)
+    , m_momentum(0.9f)
+    , m_adamBeta1(0.9f)
+    , m_adamBeta2(0.999f)
+    , m_adamEps(1e-8f)
+    , m_adamStep(0) {
     m_W1.resize(Hidden1 * InputDim);
     m_b1.resize(Hidden1);
     m_W2.resize(Hidden2 * Hidden1);
@@ -41,6 +47,20 @@ ToyNet::ToyNet()
     m_dW3.resize(m_W3.size());
     m_db3.resize(m_b3.size());
 
+    m_mW1.resize(m_W1.size());
+    m_mb1.resize(m_b1.size());
+    m_mW2.resize(m_W2.size());
+    m_mb2.resize(m_b2.size());
+    m_mW3.resize(m_W3.size());
+    m_mb3.resize(m_b3.size());
+
+    m_vW1.resize(m_W1.size());
+    m_vb1.resize(m_b1.size());
+    m_vW2.resize(m_W2.size());
+    m_vb2.resize(m_b2.size());
+    m_vW3.resize(m_W3.size());
+    m_vb3.resize(m_b3.size());
+
     resetParameters(1);
 }
 
@@ -62,6 +82,15 @@ void ToyNet::resetParameters(unsigned int seed) {
     std::fill(m_b1.begin(), m_b1.end(), 0.0f);
     std::fill(m_b2.begin(), m_b2.end(), 0.0f);
     std::fill(m_b3.begin(), m_b3.end(), 0.0f);
+
+    optimizerResetState(
+        m_mW1, m_mb1,
+        m_mW2, m_mb2,
+        m_mW3, m_mb3,
+        m_vW1, m_vb1,
+        m_vW2, m_vb2,
+        m_vW3, m_vb3,
+        m_adamStep);
 }
 
 float ToyNet::trainBatch(const std::vector<DataPoint>& batch, float& outAccuracy) {
@@ -244,13 +273,28 @@ float ToyNet::trainBatch(const std::vector<DataPoint>& batch, float& outAccuracy
     for (auto& g : m_dW3) g *= invN;
     for (auto& g : m_db3) g *= invN;
 
-    // Gradient descent update
-    for (std::size_t i = 0; i < m_W1.size(); ++i) m_W1[i] -= m_learningRate * m_dW1[i];
-    for (std::size_t i = 0; i < m_b1.size(); ++i) m_b1[i] -= m_learningRate * m_db1[i];
-    for (std::size_t i = 0; i < m_W2.size(); ++i) m_W2[i] -= m_learningRate * m_dW2[i];
-    for (std::size_t i = 0; i < m_b2.size(); ++i) m_b2[i] -= m_learningRate * m_db2[i];
-    for (std::size_t i = 0; i < m_W3.size(); ++i) m_W3[i] -= m_learningRate * m_dW3[i];
-    for (std::size_t i = 0; i < m_b3.size(); ++i) m_b3[i] -= m_learningRate * m_db3[i];
+    OptimizerConfig cfg;
+    cfg.type         = m_optimizerType;
+    cfg.learningRate = m_learningRate;
+    cfg.momentum     = m_momentum;
+    cfg.beta1        = m_adamBeta1;
+    cfg.beta2        = m_adamBeta2;
+    cfg.eps          = m_adamEps;
+
+    optimizerApplyUpdate(cfg,
+                         m_W1,  m_b1,
+                         m_W2,  m_b2,
+                         m_W3,  m_b3,
+                         m_dW1, m_db1,
+                         m_dW2, m_db2,
+                         m_dW3, m_db3,
+                         m_mW1, m_mb1,
+                         m_mW2, m_mb2,
+                         m_mW3, m_mb3,
+                         m_vW1, m_vb1,
+                         m_vW2, m_vb2,
+                         m_vW3, m_vb3,
+                         m_adamStep);
 
     return loss;
 }
@@ -334,6 +378,17 @@ void ToyNet::setLearningRate(float lr) {
 
 float ToyNet::getLearningRate() const {
     return m_learningRate;
+}
+
+void ToyNet::setOptimizer(OptimizerType type) {
+    m_optimizerType = type;
+}
+
+void ToyNet::setOptimizerHyperparams(float momentum, float beta1, float beta2, float eps) {
+    m_momentum  = momentum;
+    m_adamBeta1 = beta1;
+    m_adamBeta2 = beta2;
+    m_adamEps   = eps;
 }
 
 const std::vector<float>& ToyNet::getW1() const { return m_W1; }

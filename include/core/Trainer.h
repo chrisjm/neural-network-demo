@@ -14,6 +14,12 @@ struct Trainer {
     int   autoMaxSteps;
     float autoTargetLoss;
 
+    OptimizerType optimizerType;
+    float         momentum;
+    float         adamBeta1;
+    float         adamBeta2;
+    float         adamEps;
+
     int   stepCount;
     float lastLoss;
     float lastAccuracy;
