@@ -1,11 +1,15 @@
+// Use GLAD for desktop OpenGL and GLES3 headers for Emscripten/WebGL.
 #ifdef __APPLE__
 #define GL_SILENCE_DEPRECATION
-#define GLFW_INCLUDE_GLCOREARB
+#endif
+
+#ifdef __EMSCRIPTEN__
+#define GLFW_INCLUDE_ES3
 #include <GLFW/glfw3.h>
 #else
 #define GLFW_INCLUDE_NONE
+#include <glad/glad.h>
 #include <GLFW/glfw3.h>
-#include <GL/gl.h>
 #endif
 
 #include <iostream>
