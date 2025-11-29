@@ -115,6 +115,24 @@ const char *gridFragmentShaderSource = "#version 330 core\n"
     "    FragColor = vec4(uColor, 1.0);\n"
     "}\n\0";
 
+const char *fieldVertexShaderSource = "#version 330 core\n"
+    "layout (location = 0) in vec2 aPos;\n"
+    "layout (location = 1) in vec3 aColor;\n"
+    "out vec3 vColor;\n"
+    "void main()\n"
+    "{\n"
+    "    gl_Position = vec4(aPos, 0.0, 1.0);\n"
+    "    vColor = aColor;\n"
+    "}\n\0";
+
+const char *fieldFragmentShaderSource = "#version 330 core\n"
+    "in vec3 vColor;\n"
+    "out vec4 FragColor;\n"
+    "void main()\n"
+    "{\n"
+    "    FragColor = vec4(vColor, 0.4);\n"
+    "}\n\0";
+
 App::App()
     : m_window(nullptr) {
 }
@@ -159,6 +177,8 @@ bool App::init() {
     }
 
     glEnable(GL_PROGRAM_POINT_SIZE);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
     check_gl_error("After GLAD initialization");
 
@@ -209,6 +229,9 @@ int App::run() {
     // Simple line shader for grid and axes.
     ShaderProgram gridShader(gridVertexShaderSource, gridFragmentShaderSource);
     int gridColorLocation = glGetUniformLocation(gridShader.getId(), "uColor");
+
+    // Shader for decision-boundary background field.
+    ShaderProgram fieldShader(fieldVertexShaderSource, fieldFragmentShaderSource);
 
     // ==========================================
     // 4. LOAD ASSETS (Sending Mesh to VRAM)
@@ -337,6 +360,31 @@ int App::run() {
     glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), reinterpret_cast<void*>(0));
     glBindVertexArray(0);
 
+    // Decision-boundary field mesh (CPU-sampled grid over [-1, 1] x [-1, 1]).
+    const int fieldResolution = 64;
+    const int fieldQuads      = (fieldResolution - 1) * (fieldResolution - 1);
+    const int fieldVerts      = fieldQuads * 6;           // 2 triangles per quad, 3 vertices each
+    const GLsizeiptr fieldBufferSize = static_cast<GLsizeiptr>(fieldVerts * 5 * sizeof(float));
+
+    unsigned int fieldVAO = 0;
+    unsigned int fieldVBO = 0;
+    glGenVertexArrays(1, &fieldVAO);
+    glGenBuffers(1, &fieldVBO);
+
+    glBindVertexArray(fieldVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, fieldVBO);
+    glBufferData(GL_ARRAY_BUFFER, fieldBufferSize, nullptr, GL_DYNAMIC_DRAW);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), reinterpret_cast<void*>(0));
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), reinterpret_cast<void*>(2 * sizeof(float)));
+    glBindVertexArray(0);
+
+    std::vector<float> fieldVertexData;
+    fieldVertexData.resize(static_cast<std::size_t>(fieldVerts * 5));
+    std::vector<float> fieldProbs;
+    fieldProbs.resize(static_cast<std::size_t>(fieldResolution * fieldResolution));
+
     ToyNet net;
     float uiLearningRate   = 0.1f;
     int   uiBatchSize      = 64;
@@ -359,6 +407,71 @@ int App::run() {
             trainBatch.push_back(dataset[dataCursor]);
             dataCursor = (dataCursor + 1) % static_cast<int>(dataset.size());
         }
+    };
+
+    bool fieldDirty = true;
+
+    auto updateField = [&]() {
+        const float step = 2.0f / static_cast<float>(fieldResolution - 1);
+
+        // Sample network over a grid of positions.
+        for (int j = 0; j < fieldResolution; ++j) {
+            float y = -1.0f + step * static_cast<float>(j);
+            for (int i = 0; i < fieldResolution; ++i) {
+                float x = -1.0f + step * static_cast<float>(i);
+                float p0 = 0.0f, p1 = 0.0f;
+                net.forwardSingle(x, y, p0, p1);
+                fieldProbs[j * fieldResolution + i] = p1;
+            }
+        }
+
+        const float c0r = 0.2f, c0g = 0.6f, c0b = 1.0f;
+        const float c1r = 1.0f, c1g = 0.5f, c1b = 0.2f;
+
+        std::size_t v = 0;
+
+        auto addVertex = [&](float x, float y, float p1) {
+            float r = (1.0f - p1) * c0r + p1 * c1r;
+            float g = (1.0f - p1) * c0g + p1 * c1g;
+            float b = (1.0f - p1) * c0b + p1 * c1b;
+
+            fieldVertexData[v++] = x;
+            fieldVertexData[v++] = y;
+            fieldVertexData[v++] = r;
+            fieldVertexData[v++] = g;
+            fieldVertexData[v++] = b;
+        };
+
+        for (int j = 0; j < fieldResolution - 1; ++j) {
+            float y0 = -1.0f + step * static_cast<float>(j);
+            float y1 = -1.0f + step * static_cast<float>(j + 1);
+            for (int i = 0; i < fieldResolution - 1; ++i) {
+                float x0 = -1.0f + step * static_cast<float>(i);
+                float x1 = -1.0f + step * static_cast<float>(i + 1);
+
+                int idx00 = j * fieldResolution + i;
+                int idx10 = j * fieldResolution + (i + 1);
+                int idx01 = (j + 1) * fieldResolution + i;
+                int idx11 = (j + 1) * fieldResolution + (i + 1);
+
+                float p00 = fieldProbs[idx00];
+                float p10 = fieldProbs[idx10];
+                float p01 = fieldProbs[idx01];
+                float p11 = fieldProbs[idx11];
+
+                // Triangle 1
+                addVertex(x0, y0, p00);
+                addVertex(x1, y0, p10);
+                addVertex(x1, y1, p11);
+                // Triangle 2
+                addVertex(x0, y0, p00);
+                addVertex(x1, y1, p11);
+                addVertex(x0, y1, p01);
+            }
+        }
+
+        glBindBuffer(GL_ARRAY_BUFFER, fieldVBO);
+        glBufferSubData(GL_ARRAY_BUFFER, 0, fieldBufferSize, fieldVertexData.data());
     };
 
     // ==========================================
@@ -400,6 +513,7 @@ int App::run() {
             makeBatch(uiBatchSize);
             uiLastLoss = net.trainBatch(trainBatch, uiLastAccuracy);
             ++uiStepCount;
+            fieldDirty = true;
         }
         ImGui::SameLine();
         ImGui::Checkbox("Auto Train", &uiAutoTrain);
@@ -427,10 +541,22 @@ int App::run() {
             if (uiStepCount >= uiAutoMaxSteps || uiLastLoss <= uiAutoTargetLoss) {
                 uiAutoTrain = false;
             }
+
+            fieldDirty = true;
+        }
+
+        if (fieldDirty) {
+            updateField();
+            fieldDirty = false;
         }
 
         glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
+
+        fieldShader.use();
+        glBindVertexArray(fieldVAO);
+        glDrawArrays(GL_TRIANGLES, 0, static_cast<GLsizei>(fieldVerts));
+        glBindVertexArray(0);
 
         gridShader.use();
         if (gridColorLocation != -1) {
@@ -476,6 +602,8 @@ int App::run() {
     glDeleteBuffers(1, &gridVBO);
     glDeleteVertexArrays(1, &axisVAO);
     glDeleteBuffers(1, &axisVBO);
+    glDeleteVertexArrays(1, &fieldVAO);
+    glDeleteBuffers(1, &fieldVBO);
 
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplGlfw_Shutdown();
