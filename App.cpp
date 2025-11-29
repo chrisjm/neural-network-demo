@@ -1,15 +1,18 @@
+// Use GLAD as the OpenGL loader and prevent GLFW from including system GL headers.
 #ifdef __APPLE__
 #define GL_SILENCE_DEPRECATION
-#define GLFW_INCLUDE_GLCOREARB
-#include <GLFW/glfw3.h>
-#else
-#define GLFW_INCLUDE_NONE
-#include <GLFW/glfw3.h>
-#include <GL/gl.h>
 #endif
+
+#define GLFW_INCLUDE_NONE
+#include <glad/glad.h>
+#include <GLFW/glfw3.h>
 
 #include <iostream>
 #include <cmath>
+
+#include "imgui.h"
+#include "backends/imgui_impl_glfw.h"
+#include "backends/imgui_impl_opengl3.h"
 
 #include "App.h"
 #include "ShaderProgram.h"
@@ -109,7 +112,15 @@ bool App::init() {
 
     std::cout << "[Init] OpenGL context is now current" << std::endl;
 
-    // Query and log basic OpenGL information
+    // Load OpenGL function pointers via GLAD
+    if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) {
+        std::cerr << "[Init] Failed to initialize GLAD" << std::endl;
+        return false;
+    }
+
+    check_gl_error("After GLAD initialization");
+
+    // Query and log basic OpenGL information (now that GLAD is initialized)
     const GLubyte* renderer = glGetString(GL_RENDERER);
     const GLubyte* version = glGetString(GL_VERSION);
     std::cout << "[OpenGL] Renderer: " << (renderer ? reinterpret_cast<const char*>(renderer) : "<null>") << std::endl;
@@ -120,7 +131,13 @@ bool App::init() {
     glGetIntegerv(GL_MINOR_VERSION, &minor);
     std::cout << "[OpenGL] Detected version " << major << "." << minor << std::endl;
 
-    check_gl_error("After context creation");
+    // Initialize Dear ImGui after OpenGL/GLAD are ready
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    ImGui::StyleColorsDark();
+
+    ImGui_ImplGlfw_InitForOpenGL(m_window, true);
+    ImGui_ImplOpenGL3_Init("#version 330");  // matches your GL version
 
     return true;
 }
@@ -244,6 +261,15 @@ int App::run() {
         handleKeyboardInput(window, objects, 2, selectedObject, tabPressedLastFrame);
         handleMouseInput(window, objects, 2, selectedObject, leftMousePressedLastFrame, vertices);
 
+        ImGui_ImplOpenGL3_NewFrame();
+        ImGui_ImplGlfw_NewFrame();
+        ImGui::NewFrame();
+
+        // Debug window
+        ImGui::Begin("Debug");
+        // show object state, mouse coords, selectedObject, etc.
+        ImGui::End();
+
         // Render Command 1: Clear the screen
         glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
@@ -289,6 +315,9 @@ int App::run() {
         square.bind();
         square.draw();
 
+        ImGui::Render();
+        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+
         // Swap buffers (Double buffering prevents flickering)
         glfwSwapBuffers(window);
         glfwPollEvents();
@@ -299,6 +328,10 @@ int App::run() {
     glDeleteBuffers(1, &VBO);
     glDeleteVertexArrays(1, &squareVAO);
     glDeleteBuffers(1, &squareVBO);
+
+    ImGui_ImplOpenGL3_Shutdown();
+    ImGui_ImplGlfw_Shutdown();
+    ImGui::DestroyContext();
 
     glfwTerminate();
     return 0;

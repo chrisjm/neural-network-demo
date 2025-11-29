@@ -1,12 +1,11 @@
+// Use GLAD as the OpenGL loader and prevent GLFW from including system GL headers.
 #ifdef __APPLE__
 #define GL_SILENCE_DEPRECATION
-#define GLFW_INCLUDE_GLCOREARB
-#include <GLFW/glfw3.h>
-#else
-#define GLFW_INCLUDE_NONE
-#include <GLFW/glfw3.h>
-#include <GL/gl.h>
 #endif
+
+#define GLFW_INCLUDE_NONE
+#include <glad/glad.h>
+#include <GLFW/glfw3.h>
 
 #include <iostream>
 

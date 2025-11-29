@@ -1,12 +1,11 @@
+// Use GLAD as the OpenGL loader and prevent GLFW from including system GL headers.
 #ifdef __APPLE__
 #define GL_SILENCE_DEPRECATION
-#define GLFW_INCLUDE_GLCOREARB
-#include <GLFW/glfw3.h>
-#else
-#define GLFW_INCLUDE_NONE
-#include <GLFW/glfw3.h>
-#include <GL/gl.h>
 #endif
+
+#define GLFW_INCLUDE_NONE
+#include <glad/glad.h>
+#include <GLFW/glfw3.h>
 
 #include <iostream>
 
@@ -124,9 +123,6 @@ void handleMouseInput(GLFWwindow* window,
             // math matches the coordinate system used by glfwGetCursorPos.
             float xNdc =  2.0f * static_cast<float>(mouseX) / static_cast<float>(winWidth) - 1.0f;
             float yNdc =  1.0f - 2.0f * static_cast<float>(mouseY) / static_cast<float>(winHeight);
-
-            // For now we assume objects[0] is the triangle and objects[1]
-            // is the square. This can be generalized later if needed.
 
             // Test triangle first.
             float triLocalX = 0.0f, triLocalY = 0.0f;
