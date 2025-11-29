@@ -20,6 +20,9 @@
 #include "GLUtils.h"
 #include "DataPoint.h"
 #include "ToyNet.h"
+#include "DatasetGenerator.h"
+#include "FieldVisualizer.h"
+#include "PlotGeometry.h"
 
 // ==========================================
 // 1. THE SHADER SOURCE CODE (The "Recipe")
@@ -240,214 +243,9 @@ int App::run() {
     // Dataset of 2D points with class labels.
     std::vector<DataPoint> dataset;
 
-    enum class DatasetType {
-        TwoBlobs = 0,
-        ConcentricCircles,
-        TwoMoons,
-        XORQuads,
-        Spirals
-    };
-
-    auto generateTwoBlobs = [](int numPoints, float spread, std::vector<DataPoint>& out) {
-        out.clear();
-        out.reserve(static_cast<size_t>(numPoints));
-
-        int half = numPoints / 2;
-        auto rand01 = []() {
-            return static_cast<float>(std::rand()) / static_cast<float>(RAND_MAX);
-        };
-
-        for (int i = 0; i < half; ++i) {
-            float angle = rand01() * 2.0f * static_cast<float>(M_PI);
-            float radius = spread * rand01();
-            float cx = -0.5f;
-            float cy = 0.0f;
-            float x = cx + std::cos(angle) * radius;
-            float y = cy + std::sin(angle) * radius;
-            out.push_back({x, y, 0});
-        }
-
-        for (int i = half; i < numPoints; ++i) {
-            float angle = rand01() * 2.0f * static_cast<float>(M_PI);
-            float radius = spread * rand01();
-            float cx = 0.5f;
-            float cy = 0.0f;
-            float x = cx + std::cos(angle) * radius;
-            float y = cy + std::sin(angle) * radius;
-            out.push_back({x, y, 1});
-        }
-    };
-
-    auto generateConcentricCircles = [](int numPoints, float noise, std::vector<DataPoint>& out) {
-        out.clear();
-        out.reserve(static_cast<size_t>(numPoints));
-
-        int half = numPoints / 2;
-        auto rand01 = []() {
-            return static_cast<float>(std::rand()) / static_cast<float>(RAND_MAX);
-        };
-
-        float innerR = 0.3f;
-        float outerR = 0.75f;
-        float noiseScale = noise;
-
-        for (int i = 0; i < half; ++i) {
-            float angle = rand01() * 2.0f * static_cast<float>(M_PI);
-            float r = innerR + noiseScale * (rand01() - 0.5f);
-            float x = r * std::cos(angle);
-            float y = r * std::sin(angle);
-            out.push_back({x, y, 0});
-        }
-
-        for (int i = half; i < numPoints; ++i) {
-            float angle = rand01() * 2.0f * static_cast<float>(M_PI);
-            float r = outerR + noiseScale * (rand01() - 0.5f);
-            float x = r * std::cos(angle);
-            float y = r * std::sin(angle);
-            out.push_back({x, y, 1});
-        }
-    };
-
-    auto generateTwoMoons = [](int numPoints, float noise, std::vector<DataPoint>& out) {
-        out.clear();
-        out.reserve(static_cast<size_t>(numPoints));
-
-        int half = numPoints / 2;
-        auto rand01 = []() {
-            return static_cast<float>(std::rand()) / static_cast<float>(RAND_MAX);
-        };
-
-        float radius = 0.8f;
-        float offsetX = 0.5f;
-        float offsetY = 0.25f;
-        float noiseScale = noise;
-
-        for (int i = 0; i < half; ++i) {
-            float t = rand01() * static_cast<float>(M_PI);
-            float x = std::cos(t) * radius - offsetX;
-            float y = std::sin(t) * radius * 0.5f;
-            x += noiseScale * (rand01() - 0.5f);
-            y += noiseScale * (rand01() - 0.5f);
-            out.push_back({x, y, 0});
-        }
-
-        for (int i = half; i < numPoints; ++i) {
-            float t = rand01() * static_cast<float>(M_PI);
-            float x = std::cos(t) * radius + offsetX;
-            float y = -std::sin(t) * radius * 0.5f + offsetY;
-            x += noiseScale * (rand01() - 0.5f);
-            y += noiseScale * (rand01() - 0.5f);
-            out.push_back({x, y, 1});
-        }
-    };
-
-    auto generateXORQuads = [](int numPoints, float spread, std::vector<DataPoint>& out) {
-        out.clear();
-        out.reserve(static_cast<size_t>(numPoints));
-
-        auto rand01 = []() {
-            return static_cast<float>(std::rand()) / static_cast<float>(RAND_MAX);
-        };
-
-        int quarter = numPoints / 4;
-        float r = spread;
-
-        auto sampleAround = [&](float cx, float cy, int label, int count) {
-            for (int i = 0; i < count; ++i) {
-                float angle = rand01() * 2.0f * static_cast<float>(M_PI);
-                float rad = r * rand01();
-                float x = cx + std::cos(angle) * rad;
-                float y = cy + std::sin(angle) * rad;
-                out.push_back({x, y, label});
-            }
-        };
-
-        sampleAround(-0.5f, -0.5f, 0, quarter);
-        sampleAround( 0.5f,  0.5f, 0, quarter);
-        sampleAround(-0.5f,  0.5f, 1, quarter);
-        sampleAround( 0.5f, -0.5f, 1, numPoints - 3 * quarter);
-    };
-
-    auto generateSpirals = [](int numPoints, float noise, std::vector<DataPoint>& out) {
-        out.clear();
-        out.reserve(static_cast<size_t>(numPoints));
-
-        int half = numPoints / 2;
-        auto rand01 = []() {
-            return static_cast<float>(std::rand()) / static_cast<float>(RAND_MAX);
-        };
-
-        float maxT = 3.5f * static_cast<float>(M_PI);
-        float a = 0.1f;
-        float b = 0.05f;
-        float noiseScale = noise;
-
-        auto sampleSpiral = [&](int label, float angleOffset, int count) {
-            for (int i = 0; i < count; ++i) {
-                float t = rand01() * maxT;
-                float r = a + b * t;
-                float x = r * std::cos(t + angleOffset);
-                float y = r * std::sin(t + angleOffset);
-                x += noiseScale * (rand01() - 0.5f);
-                y += noiseScale * (rand01() - 0.5f);
-                out.push_back({x, y, label});
-            }
-        };
-
-        sampleSpiral(0, 0.0f, half);
-        sampleSpiral(1, static_cast<float>(M_PI), numPoints - half);
-    };
-
-    auto generateDataset = [&](DatasetType type, int numPoints, float spread, std::vector<DataPoint>& out) {
-        switch (type) {
-            case DatasetType::TwoBlobs:
-                generateTwoBlobs(numPoints, spread, out);
-                break;
-            case DatasetType::ConcentricCircles:
-                generateConcentricCircles(numPoints, spread, out);
-                break;
-            case DatasetType::TwoMoons:
-                generateTwoMoons(numPoints, spread, out);
-                break;
-            case DatasetType::XORQuads:
-                generateXORQuads(numPoints, spread, out);
-                break;
-            case DatasetType::Spirals:
-                generateSpirals(numPoints, spread, out);
-                break;
-        }
-    };
-
-    unsigned int pointVAO = 0;
-    unsigned int pointVBO = 0;
-    glGenVertexArrays(1, &pointVAO);
-    glGenBuffers(1, &pointVBO);
-
-    glBindVertexArray(pointVAO);
-    glBindBuffer(GL_ARRAY_BUFFER, pointVBO);
-
-    int maxPoints = 5000;
-    glBufferData(GL_ARRAY_BUFFER, static_cast<GLsizeiptr>(maxPoints * 3 * sizeof(float)), nullptr, GL_DYNAMIC_DRAW);
-
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 3 * sizeof(float), reinterpret_cast<void*>(0));
-
-    glEnableVertexAttribArray(1);
-    glVertexAttribPointer(1, 1, GL_FLOAT, GL_FALSE, 3 * sizeof(float), reinterpret_cast<void*>(2 * sizeof(float)));
-
-    glBindVertexArray(0);
-
-    auto uploadDatasetToGPU = [&](const std::vector<DataPoint>& data) {
-        std::vector<float> buffer;
-        buffer.reserve(data.size() * 3);
-        for (const auto& p : data) {
-            buffer.push_back(p.x);
-            buffer.push_back(p.y);
-            buffer.push_back(static_cast<float>(p.label));
-        }
-        glBindBuffer(GL_ARRAY_BUFFER, pointVBO);
-        glBufferSubData(GL_ARRAY_BUFFER, 0, static_cast<GLsizeiptr>(buffer.size() * sizeof(float)), buffer.data());
-    };
+    const int maxPoints = 5000;
+    PointCloud pointCloud;
+    pointCloud.init(maxPoints);
 
     int   uiNumPoints = 1000;
     float uiSpread    = 0.25f;
@@ -457,84 +255,15 @@ int App::run() {
     int uiDatasetIndex = 0;
 
     generateDataset(currentDataset, uiNumPoints, uiSpread, dataset);
-    uploadDatasetToGPU(dataset);
+    pointCloud.upload(dataset);
 
-    std::vector<float> gridVertices;
     const float gridStep = 0.25f;
+    GridAxes gridAxes;
+    gridAxes.init(gridStep);
 
-    for (float x = -1.0f; x <= 1.0001f; x += gridStep) {
-        gridVertices.push_back(x);
-        gridVertices.push_back(-1.0f);
-        gridVertices.push_back(x);
-        gridVertices.push_back(1.0f);
-    }
-
-    for (float y = -1.0f; y <= 1.0001f; y += gridStep) {
-        gridVertices.push_back(-1.0f);
-        gridVertices.push_back(y);
-        gridVertices.push_back(1.0f);
-        gridVertices.push_back(y);
-    }
-
-    std::vector<float> axisVertices = {
-        -1.0f,  0.0f,  1.0f,  0.0f,
-         0.0f, -1.0f,  0.0f,  1.0f
-    };
-
-    unsigned int gridVAO = 0;
-    unsigned int gridVBO = 0;
-    glGenVertexArrays(1, &gridVAO);
-    glGenBuffers(1, &gridVBO);
-
-    glBindVertexArray(gridVAO);
-    glBindBuffer(GL_ARRAY_BUFFER, gridVBO);
-    glBufferData(GL_ARRAY_BUFFER,
-                 static_cast<GLsizeiptr>(gridVertices.size() * sizeof(float)),
-                 gridVertices.data(),
-                 GL_STATIC_DRAW);
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), reinterpret_cast<void*>(0));
-    glBindVertexArray(0);
-
-    unsigned int axisVAO = 0;
-    unsigned int axisVBO = 0;
-    glGenVertexArrays(1, &axisVAO);
-    glGenBuffers(1, &axisVBO);
-
-    glBindVertexArray(axisVAO);
-    glBindBuffer(GL_ARRAY_BUFFER, axisVBO);
-    glBufferData(GL_ARRAY_BUFFER,
-                 static_cast<GLsizeiptr>(axisVertices.size() * sizeof(float)),
-                 axisVertices.data(),
-                 GL_STATIC_DRAW);
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), reinterpret_cast<void*>(0));
-    glBindVertexArray(0);
-
-    // Decision-boundary field mesh (CPU-sampled grid over [-1, 1] x [-1, 1]).
     const int fieldResolution = 64;
-    const int fieldQuads      = (fieldResolution - 1) * (fieldResolution - 1);
-    const int fieldVerts      = fieldQuads * 6;           // 2 triangles per quad, 3 vertices each
-    const GLsizeiptr fieldBufferSize = static_cast<GLsizeiptr>(fieldVerts * 5 * sizeof(float));
-
-    unsigned int fieldVAO = 0;
-    unsigned int fieldVBO = 0;
-    glGenVertexArrays(1, &fieldVAO);
-    glGenBuffers(1, &fieldVBO);
-
-    glBindVertexArray(fieldVAO);
-    glBindBuffer(GL_ARRAY_BUFFER, fieldVBO);
-    glBufferData(GL_ARRAY_BUFFER, fieldBufferSize, nullptr, GL_DYNAMIC_DRAW);
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), reinterpret_cast<void*>(0));
-    glEnableVertexAttribArray(1);
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), reinterpret_cast<void*>(2 * sizeof(float)));
-    glBindVertexArray(0);
-
-    std::vector<float> fieldVertexData;
-    fieldVertexData.resize(static_cast<std::size_t>(fieldVerts * 5));
-    std::vector<float> fieldProbs;
-    fieldProbs.resize(static_cast<std::size_t>(fieldResolution * fieldResolution));
+    FieldVisualizer fieldVis;
+    fieldVis.init(fieldResolution);
 
     ToyNet net;
     float uiLearningRate   = 0.1f;
@@ -558,71 +287,6 @@ int App::run() {
             trainBatch.push_back(dataset[dataCursor]);
             dataCursor = (dataCursor + 1) % static_cast<int>(dataset.size());
         }
-    };
-
-    bool fieldDirty = true;
-
-    auto updateField = [&]() {
-        const float step = 2.0f / static_cast<float>(fieldResolution - 1);
-
-        // Sample network over a grid of positions.
-        for (int j = 0; j < fieldResolution; ++j) {
-            float y = -1.0f + step * static_cast<float>(j);
-            for (int i = 0; i < fieldResolution; ++i) {
-                float x = -1.0f + step * static_cast<float>(i);
-                float p0 = 0.0f, p1 = 0.0f;
-                net.forwardSingle(x, y, p0, p1);
-                fieldProbs[j * fieldResolution + i] = p1;
-            }
-        }
-
-        const float c0r = 0.2f, c0g = 0.6f, c0b = 1.0f;
-        const float c1r = 1.0f, c1g = 0.5f, c1b = 0.2f;
-
-        std::size_t v = 0;
-
-        auto addVertex = [&](float x, float y, float p1) {
-            float r = (1.0f - p1) * c0r + p1 * c1r;
-            float g = (1.0f - p1) * c0g + p1 * c1g;
-            float b = (1.0f - p1) * c0b + p1 * c1b;
-
-            fieldVertexData[v++] = x;
-            fieldVertexData[v++] = y;
-            fieldVertexData[v++] = r;
-            fieldVertexData[v++] = g;
-            fieldVertexData[v++] = b;
-        };
-
-        for (int j = 0; j < fieldResolution - 1; ++j) {
-            float y0 = -1.0f + step * static_cast<float>(j);
-            float y1 = -1.0f + step * static_cast<float>(j + 1);
-            for (int i = 0; i < fieldResolution - 1; ++i) {
-                float x0 = -1.0f + step * static_cast<float>(i);
-                float x1 = -1.0f + step * static_cast<float>(i + 1);
-
-                int idx00 = j * fieldResolution + i;
-                int idx10 = j * fieldResolution + (i + 1);
-                int idx01 = (j + 1) * fieldResolution + i;
-                int idx11 = (j + 1) * fieldResolution + (i + 1);
-
-                float p00 = fieldProbs[idx00];
-                float p10 = fieldProbs[idx10];
-                float p01 = fieldProbs[idx01];
-                float p11 = fieldProbs[idx11];
-
-                // Triangle 1
-                addVertex(x0, y0, p00);
-                addVertex(x1, y0, p10);
-                addVertex(x1, y1, p11);
-                // Triangle 2
-                addVertex(x0, y0, p00);
-                addVertex(x1, y1, p11);
-                addVertex(x0, y1, p01);
-            }
-        }
-
-        glBindBuffer(GL_ARRAY_BUFFER, fieldVBO);
-        glBufferSubData(GL_ARRAY_BUFFER, 0, fieldBufferSize, fieldVertexData.data());
     };
 
     // ==========================================
@@ -663,14 +327,14 @@ int App::run() {
             if (uiNumPoints < 10) uiNumPoints = 10;
             if (uiNumPoints > maxPoints) uiNumPoints = maxPoints;
             generateDataset(currentDataset, uiNumPoints, uiSpread, dataset);
-            uploadDatasetToGPU(dataset);
+            pointCloud.upload(dataset);
 
             net.resetParameters();
             uiStepCount    = 0;
             uiLastLoss     = 0.0f;
             uiLastAccuracy = 0.0f;
             uiAutoTrain    = false;
-            fieldDirty     = true;
+            fieldVis.setDirty();
         }
 
         ImGui::Separator();
@@ -684,7 +348,7 @@ int App::run() {
             makeBatch(uiBatchSize);
             uiLastLoss = net.trainBatch(trainBatch, uiLastAccuracy);
             ++uiStepCount;
-            fieldDirty = true;
+            fieldVis.setDirty();
         }
         ImGui::SameLine();
         ImGui::Checkbox("Auto Train", &uiAutoTrain);
@@ -713,36 +377,29 @@ int App::run() {
                 uiAutoTrain = false;
             }
 
-            fieldDirty = true;
+            fieldVis.setDirty();
         }
 
-        if (fieldDirty) {
-            updateField();
-            fieldDirty = false;
+        if (fieldVis.isDirty()) {
+            fieldVis.update(net);
         }
 
         glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
 
         fieldShader.use();
-        glBindVertexArray(fieldVAO);
-        glDrawArrays(GL_TRIANGLES, 0, static_cast<GLsizei>(fieldVerts));
-        glBindVertexArray(0);
+        fieldVis.draw();
 
         gridShader.use();
         if (gridColorLocation != -1) {
             gridShader.setVec3(gridColorLocation, 0.15f, 0.15f, 0.15f);
         }
-        glBindVertexArray(gridVAO);
-        glDrawArrays(GL_LINES, 0, static_cast<GLsizei>(gridVertices.size() / 2));
-        glBindVertexArray(0);
+        gridAxes.drawGrid();
 
         if (gridColorLocation != -1) {
             gridShader.setVec3(gridColorLocation, 0.8f, 0.8f, 0.8f);
         }
-        glBindVertexArray(axisVAO);
-        glDrawArrays(GL_LINES, 0, static_cast<GLsizei>(axisVertices.size() / 2));
-        glBindVertexArray(0);
+        gridAxes.drawAxes();
 
         pointShader.use();
 
@@ -756,9 +413,7 @@ int App::run() {
             pointShader.setVec3(colorClass1Location, 1.0f, 0.5f, 0.2f);
         }
 
-        glBindVertexArray(pointVAO);
-        glDrawArrays(GL_POINTS, 0, static_cast<GLsizei>(dataset.size()));
-        glBindVertexArray(0);
+        pointCloud.draw(dataset.size());
 
         ImGui::Render();
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
@@ -767,14 +422,9 @@ int App::run() {
         glfwPollEvents();
     }
 
-    glDeleteVertexArrays(1, &pointVAO);
-    glDeleteBuffers(1, &pointVBO);
-    glDeleteVertexArrays(1, &gridVAO);
-    glDeleteBuffers(1, &gridVBO);
-    glDeleteVertexArrays(1, &axisVAO);
-    glDeleteBuffers(1, &axisVBO);
-    glDeleteVertexArrays(1, &fieldVAO);
-    glDeleteBuffers(1, &fieldVBO);
+    pointCloud.shutdown();
+    gridAxes.shutdown();
+    fieldVis.shutdown();
 
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplGlfw_Shutdown();

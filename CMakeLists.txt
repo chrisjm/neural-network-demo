@@ -24,6 +24,9 @@ add_definitions(-DIMGUI_IMPL_OPENGL_LOADER_GLAD)
 add_executable(HelloTriangle
     main.cpp
     src/core/App.cpp
+    src/core/DatasetGenerator.cpp
+    src/core/FieldVisualizer.cpp
+    src/core/PlotGeometry.cpp
     src/core/GeometryUtils.cpp
     src/core/Input.cpp
     src/core/ToyNet.cpp
