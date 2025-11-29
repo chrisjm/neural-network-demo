@@ -26,6 +26,7 @@ add_executable(HelloTriangle
     src/core/App.cpp
     src/core/GeometryUtils.cpp
     src/core/Input.cpp
+    src/core/ToyNet.cpp
     src/render/GLUtils.cpp
     src/render/ShaderProgram.cpp
     src/render/TriangleMesh.cpp

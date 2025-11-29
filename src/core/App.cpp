@@ -18,6 +18,8 @@
 #include "App.h"
 #include "ShaderProgram.h"
 #include "GLUtils.h"
+#include "DataPoint.h"
+#include "ToyNet.h"
 
 // ==========================================
 // 1. THE SHADER SOURCE CODE (The "Recipe")
@@ -213,12 +215,6 @@ int App::run() {
     // ==========================================
 
     // Dataset of 2D points with class labels.
-    struct DataPoint {
-        float x;
-        float y;
-        int   label;
-    };
-
     std::vector<DataPoint> dataset;
 
     auto generateTwoBlobs = [](int numPoints, float spread, std::vector<DataPoint>& out) {
@@ -341,6 +337,28 @@ int App::run() {
     glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), reinterpret_cast<void*>(0));
     glBindVertexArray(0);
 
+    ToyNet net;
+    float uiLearningRate = 0.1f;
+    int   uiBatchSize    = 64;
+    bool  uiAutoTrain    = false;
+    int   uiStepCount    = 0;
+    float uiLastLoss     = 0.0f;
+    float uiLastAccuracy = 0.0f;
+
+    std::vector<DataPoint> trainBatch;
+    trainBatch.reserve(ToyNet::MaxBatch);
+    int dataCursor = 0;
+
+    auto makeBatch = [&](int batchSize) {
+        trainBatch.clear();
+        if (dataset.empty()) return;
+        if (batchSize > ToyNet::MaxBatch) batchSize = ToyNet::MaxBatch;
+        for (int i = 0; i < batchSize; ++i) {
+            trainBatch.push_back(dataset[dataCursor]);
+            dataCursor = (dataCursor + 1) % static_cast<int>(dataset.size());
+        }
+    };
+
     // ==========================================
     // 5. THE GAME LOOP
     // ==========================================
@@ -372,9 +390,33 @@ int App::run() {
         ImGui::Separator();
         ImGui::SliderFloat("Point Size", &uiPointSize, 2.0f, 12.0f);
 
+        ImGui::Separator();
+        ImGui::SliderFloat("Learning Rate", &uiLearningRate, 0.0001f, 1.0f, "%.5f");
+        ImGui::SliderInt("Batch Size", &uiBatchSize, 1, ToyNet::MaxBatch);
+
+        if (ImGui::Button("Step Train")) {
+            makeBatch(uiBatchSize);
+            uiLastLoss = net.trainBatch(trainBatch, uiLastAccuracy);
+            ++uiStepCount;
+        }
+        ImGui::SameLine();
+        ImGui::Checkbox("Auto Train", &uiAutoTrain);
+
+        ImGui::Text("Step: %d", uiStepCount);
+        ImGui::Text("Loss: %.4f", uiLastLoss);
+        ImGui::Text("Accuracy: %.3f", uiLastAccuracy);
+
         ImGui::Text("Current points: %d", static_cast<int>(dataset.size()));
 
         ImGui::End();
+
+        net.learningRate = uiLearningRate;
+
+        if (uiAutoTrain) {
+            makeBatch(uiBatchSize);
+            uiLastLoss = net.trainBatch(trainBatch, uiLastAccuracy);
+            ++uiStepCount;
+        }
 
         glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
