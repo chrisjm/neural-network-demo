@@ -9,6 +9,7 @@
 
 #include <iostream>
 #include <cmath>
+#include <vector>
 
 #include "imgui.h"
 #include "backends/imgui_impl_glfw.h"
@@ -95,6 +96,21 @@ const char *pointFragmentShaderSource = "#version 330 core\n"
     "    if (dot(d, d) > 0.25) discard;\n"
     "    vec3 color = (vLabel == 0) ? uColorClass0 : uColorClass1;\n"
     "    FragColor = vec4(color, 1.0);\n"
+    "}\n\0";
+
+const char *gridVertexShaderSource = "#version 330 core\n"
+    "layout (location = 0) in vec2 aPos;\n"
+    "void main()\n"
+    "{\n"
+    "    gl_Position = vec4(aPos, 0.0, 1.0);\n"
+    "}\n\0";
+
+const char *gridFragmentShaderSource = "#version 330 core\n"
+    "out vec4 FragColor;\n"
+    "uniform vec3 uColor;\n"
+    "void main()\n"
+    "{\n"
+    "    FragColor = vec4(uColor, 1.0);\n"
     "}\n\0";
 
 App::App()
@@ -188,6 +204,10 @@ int App::run() {
     int colorClass0Location  = glGetUniformLocation(pointShader.getId(), "uColorClass0");
     int colorClass1Location  = glGetUniformLocation(pointShader.getId(), "uColorClass1");
 
+    // Simple line shader for grid and axes.
+    ShaderProgram gridShader(gridVertexShaderSource, gridFragmentShaderSource);
+    int gridColorLocation = glGetUniformLocation(gridShader.getId(), "uColor");
+
     // ==========================================
     // 4. LOAD ASSETS (Sending Mesh to VRAM)
     // ==========================================
@@ -269,6 +289,58 @@ int App::run() {
     generateTwoBlobs(uiNumPoints, uiSpread, dataset);
     uploadDatasetToGPU(dataset);
 
+    std::vector<float> gridVertices;
+    const float gridStep = 0.25f;
+
+    for (float x = -1.0f; x <= 1.0001f; x += gridStep) {
+        gridVertices.push_back(x);
+        gridVertices.push_back(-1.0f);
+        gridVertices.push_back(x);
+        gridVertices.push_back(1.0f);
+    }
+
+    for (float y = -1.0f; y <= 1.0001f; y += gridStep) {
+        gridVertices.push_back(-1.0f);
+        gridVertices.push_back(y);
+        gridVertices.push_back(1.0f);
+        gridVertices.push_back(y);
+    }
+
+    std::vector<float> axisVertices = {
+        -1.0f,  0.0f,  1.0f,  0.0f,
+         0.0f, -1.0f,  0.0f,  1.0f
+    };
+
+    unsigned int gridVAO = 0;
+    unsigned int gridVBO = 0;
+    glGenVertexArrays(1, &gridVAO);
+    glGenBuffers(1, &gridVBO);
+
+    glBindVertexArray(gridVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, gridVBO);
+    glBufferData(GL_ARRAY_BUFFER,
+                 static_cast<GLsizeiptr>(gridVertices.size() * sizeof(float)),
+                 gridVertices.data(),
+                 GL_STATIC_DRAW);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), reinterpret_cast<void*>(0));
+    glBindVertexArray(0);
+
+    unsigned int axisVAO = 0;
+    unsigned int axisVBO = 0;
+    glGenVertexArrays(1, &axisVAO);
+    glGenBuffers(1, &axisVBO);
+
+    glBindVertexArray(axisVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, axisVBO);
+    glBufferData(GL_ARRAY_BUFFER,
+                 static_cast<GLsizeiptr>(axisVertices.size() * sizeof(float)),
+                 axisVertices.data(),
+                 GL_STATIC_DRAW);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), reinterpret_cast<void*>(0));
+    glBindVertexArray(0);
+
     // ==========================================
     // 5. THE GAME LOOP
     // ==========================================
@@ -307,6 +379,21 @@ int App::run() {
         glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
 
+        gridShader.use();
+        if (gridColorLocation != -1) {
+            gridShader.setVec3(gridColorLocation, 0.15f, 0.15f, 0.15f);
+        }
+        glBindVertexArray(gridVAO);
+        glDrawArrays(GL_LINES, 0, static_cast<GLsizei>(gridVertices.size() / 2));
+        glBindVertexArray(0);
+
+        if (gridColorLocation != -1) {
+            gridShader.setVec3(gridColorLocation, 0.8f, 0.8f, 0.8f);
+        }
+        glBindVertexArray(axisVAO);
+        glDrawArrays(GL_LINES, 0, static_cast<GLsizei>(axisVertices.size() / 2));
+        glBindVertexArray(0);
+
         pointShader.use();
 
         if (pointSizeLocation != -1) {
@@ -332,6 +419,10 @@ int App::run() {
 
     glDeleteVertexArrays(1, &pointVAO);
     glDeleteBuffers(1, &pointVBO);
+    glDeleteVertexArrays(1, &gridVAO);
+    glDeleteBuffers(1, &gridVBO);
+    glDeleteVertexArrays(1, &axisVAO);
+    glDeleteBuffers(1, &axisVBO);
 
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplGlfw_Shutdown();
