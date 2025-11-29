@@ -10,11 +10,11 @@ void worldToLocal(float worldX, float worldY,
                   float& outX, float& outY);
 
 // Simple barycentric test to see if a point lies inside a 2D triangle.
-bool pointInTriangle(float px, float py,
-                     float x0, float y0,
-                     float x1, float y1,
-                     float x2, float y2);
+bool pointInTriangle(float pointX, float pointY,
+                     float v0x, float v0y,
+                     float v1x, float v1y,
+                     float v2x, float v2y);
 
 // Axis-aligned square centered at the origin in local space, from
 // (-0.5, -0.5) to (0.5, 0.5).
-bool pointInUnitSquare(float px, float py);
+bool pointInUnitSquare(float pointX, float pointY);

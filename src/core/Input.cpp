@@ -128,6 +128,8 @@ void handleMouseInput(GLFWwindow* window,
             // normalized device coordinates in [-1, 1]. We use the
             // window size here rather than the framebuffer size so the
             // math matches the coordinate system used by glfwGetCursorPos.
+            // Those clip-space coordinates are then mapped into each
+            // object's local space via worldToLocal for picking.
             float xNdc =  2.0f * static_cast<float>(mouseX) / static_cast<float>(winWidth) - 1.0f;
             float yNdc =  1.0f - 2.0f * static_cast<float>(mouseY) / static_cast<float>(winHeight);
 
@@ -205,6 +207,9 @@ void handleProbeSelection(GLFWwindow* window,
         int winHeight = 0;
         glfwGetWindowSize(window, &winWidth, &winHeight);
         if (winWidth > 0 && winHeight > 0) {
+            // Convert from window coordinates into clip-space [-1, 1]
+            // so the mouse position lives in the same space as the
+            // dataset points and decision field.
             float xNdc =  2.0f * static_cast<float>(mouseX) / static_cast<float>(winWidth) - 1.0f;
             float yNdc =  1.0f - 2.0f * static_cast<float>(mouseY) / static_cast<float>(winHeight);
 

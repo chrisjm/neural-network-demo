@@ -5,6 +5,29 @@
 #include "imgui.h"
 #include <cmath>
 
+NetworkVisualizer::NetworkVisualizer()
+    : m_canvasWidth(320.0f)
+    , m_canvasHeight(220.0f)
+    , m_marginX(30.0f)
+    , m_marginY(20.0f)
+    , m_nodeRadius(4.0f)
+{
+}
+
+void NetworkVisualizer::setCanvasSize(float width, float height) {
+    m_canvasWidth  = width;
+    m_canvasHeight = height;
+}
+
+void NetworkVisualizer::setMargins(float marginX, float marginY) {
+    m_marginX = marginX;
+    m_marginY = marginY;
+}
+
+void NetworkVisualizer::setNodeRadius(float radius) {
+    m_nodeRadius = radius;
+}
+
 void NetworkVisualizer::draw(const ToyNet& net,
                              bool probeEnabled,
                              float probeX,
@@ -14,7 +37,7 @@ void NetworkVisualizer::draw(const ToyNet& net,
     ImGui::Text("Network Diagram");
     ImGui::Text("Architecture: 2 -> %d -> %d -> 2", ToyNet::Hidden1, ToyNet::Hidden2);
 
-    const ImVec2 canvasSize(320.0f, 220.0f);
+    const ImVec2 canvasSize(m_canvasWidth, m_canvasHeight);
     ImVec2 canvasPos = ImGui::GetCursorScreenPos();
     ImVec2 canvasEnd(canvasPos.x + canvasSize.x, canvasPos.y + canvasSize.y);
 
@@ -27,8 +50,8 @@ void NetworkVisualizer::draw(const ToyNet& net,
     const int layerCount = 4;
     int layerSizes[layerCount] = { ToyNet::InputDim, ToyNet::Hidden1, ToyNet::Hidden2, ToyNet::OutputDim };
 
-    const float marginX = 30.0f;
-    const float marginY = 20.0f;
+    const float marginX = m_marginX;
+    const float marginY = m_marginY;
 
     auto nodePos = [&](int layer, int index) -> ImVec2 {
         float x0 = canvasPos.x + marginX;
@@ -192,7 +215,7 @@ void NetworkVisualizer::draw(const ToyNet& net,
     }
 
     // Draw nodes on top of connections
-    const float nodeRadius = 4.0f;
+    const float nodeRadius = m_nodeRadius;
     ImU32 baseNodeColor = IM_COL32(220, 220, 220, 255);
 
     bool   hasHover = false;
