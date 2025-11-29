@@ -19,10 +19,11 @@
 #include "ShaderProgram.h"
 #include "GLUtils.h"
 #include "DataPoint.h"
-#include "ToyNet.h"
 #include "DatasetGenerator.h"
 #include "FieldVisualizer.h"
 #include "PlotGeometry.h"
+#include "Trainer.h"
+#include "ControlPanel.h"
 
 // ==========================================
 // 1. THE SHADER SOURCE CODE (The "Recipe")
@@ -247,14 +248,15 @@ int App::run() {
     PointCloud pointCloud;
     pointCloud.init(maxPoints);
 
-    int   uiNumPoints = 1000;
-    float uiSpread    = 0.25f;
-    float uiPointSize = 6.0f;
-
     DatasetType currentDataset = DatasetType::TwoBlobs;
-    int uiDatasetIndex = 0;
 
-    generateDataset(currentDataset, uiNumPoints, uiSpread, dataset);
+    UiState ui;
+    ui.datasetIndex = static_cast<int>(currentDataset);
+    ui.numPoints    = 1000;
+    ui.spread       = 0.25f;
+    ui.pointSize    = 6.0f;
+
+    generateDataset(currentDataset, ui.numPoints, ui.spread, dataset);
     pointCloud.upload(dataset);
 
     const float gridStep = 0.25f;
@@ -265,29 +267,7 @@ int App::run() {
     FieldVisualizer fieldVis;
     fieldVis.init(fieldResolution);
 
-    ToyNet net;
-    float uiLearningRate   = 0.1f;
-    int   uiBatchSize      = 64;
-    bool  uiAutoTrain      = false;
-    int   uiStepCount      = 0;
-    float uiLastLoss       = 0.0f;
-    float uiLastAccuracy   = 0.0f;
-    int   uiAutoMaxSteps   = 2000;
-    float uiAutoTargetLoss = 0.01f;
-
-    std::vector<DataPoint> trainBatch;
-    trainBatch.reserve(ToyNet::MaxBatch);
-    int dataCursor = 0;
-
-    auto makeBatch = [&](int batchSize) {
-        trainBatch.clear();
-        if (dataset.empty()) return;
-        if (batchSize > ToyNet::MaxBatch) batchSize = ToyNet::MaxBatch;
-        for (int i = 0; i < batchSize; ++i) {
-            trainBatch.push_back(dataset[dataCursor]);
-            dataCursor = (dataCursor + 1) % static_cast<int>(dataset.size());
-        }
-    };
+    Trainer trainer;
 
     // ==========================================
     // 5. THE GAME LOOP
@@ -301,87 +281,39 @@ int App::run() {
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
 
-        ImGui::Begin("Neural Net Demo");
-
         bool regenerate = false;
+        bool stepTrainRequested = false;
 
-        static const char* datasetNames[] = {
-            "Two Blobs",
-            "Concentric Circles",
-            "Two Moons",
-            "XOR Quadrants",
-            "Spirals"
-        };
-        if (ImGui::Combo("Dataset", &uiDatasetIndex, datasetNames, IM_ARRAYSIZE(datasetNames))) {
-            currentDataset = static_cast<DatasetType>(uiDatasetIndex);
-            regenerate = true;
-        }
-
-        regenerate |= ImGui::SliderInt("Points", &uiNumPoints, 100, 5000);
-        regenerate |= ImGui::SliderFloat("Spread", &uiSpread, 0.01f, 0.5f);
-        if (ImGui::Button("Regenerate Data")) {
-            regenerate = true;
-        }
+        drawControlPanel(ui,
+                         trainer,
+                         dataset.size(),
+                         regenerate,
+                         stepTrainRequested);
 
         if (regenerate) {
-            if (uiNumPoints < 10) uiNumPoints = 10;
-            if (uiNumPoints > maxPoints) uiNumPoints = maxPoints;
-            generateDataset(currentDataset, uiNumPoints, uiSpread, dataset);
+            if (ui.numPoints < 10) ui.numPoints = 10;
+            if (ui.numPoints > maxPoints) ui.numPoints = maxPoints;
+            currentDataset = static_cast<DatasetType>(ui.datasetIndex);
+            generateDataset(currentDataset, ui.numPoints, ui.spread, dataset);
             pointCloud.upload(dataset);
 
-            net.resetParameters();
-            uiStepCount    = 0;
-            uiLastLoss     = 0.0f;
-            uiLastAccuracy = 0.0f;
-            uiAutoTrain    = false;
+            trainer.resetForNewDataset();
             fieldVis.setDirty();
         }
 
-        ImGui::Separator();
-        ImGui::SliderFloat("Point Size", &uiPointSize, 2.0f, 12.0f);
-
-        ImGui::Separator();
-        ImGui::SliderFloat("Learning Rate", &uiLearningRate, 0.0001f, 1.0f, "%.5f");
-        ImGui::SliderInt("Batch Size", &uiBatchSize, 1, ToyNet::MaxBatch);
-
-        if (ImGui::Button("Step Train")) {
-            makeBatch(uiBatchSize);
-            uiLastLoss = net.trainBatch(trainBatch, uiLastAccuracy);
-            ++uiStepCount;
+        if (stepTrainRequested) {
+            trainer.stepOnce(dataset);
             fieldVis.setDirty();
         }
-        ImGui::SameLine();
-        ImGui::Checkbox("Auto Train", &uiAutoTrain);
 
-        ImGui::Text("Step: %d", uiStepCount);
-        ImGui::Text("Loss: %.4f", uiLastLoss);
-        ImGui::Text("Accuracy: %.3f", uiLastAccuracy);
-
-        ImGui::Separator();
-        ImGui::SliderInt("Auto Max Steps", &uiAutoMaxSteps, 1, 50000);
-        ImGui::SliderFloat("Auto Target Loss", &uiAutoTargetLoss, 0.00001f, 1.0f, "%.5f");
-        ImGui::Text("Auto stops when step >= %d or loss <= %.5f", uiAutoMaxSteps, uiAutoTargetLoss);
-
-        ImGui::Text("Current points: %d", static_cast<int>(dataset.size()));
-
-        ImGui::End();
-
-        net.learningRate = uiLearningRate;
-
-        if (uiAutoTrain) {
-            makeBatch(uiBatchSize);
-            uiLastLoss = net.trainBatch(trainBatch, uiLastAccuracy);
-            ++uiStepCount;
-
-            if (uiStepCount >= uiAutoMaxSteps || uiLastLoss <= uiAutoTargetLoss) {
-                uiAutoTrain = false;
+        if (trainer.autoTrain) {
+            if (trainer.stepAuto(dataset)) {
+                fieldVis.setDirty();
             }
-
-            fieldVis.setDirty();
         }
 
         if (fieldVis.isDirty()) {
-            fieldVis.update(net);
+            fieldVis.update(trainer.net);
         }
 
         glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
@@ -404,7 +336,7 @@ int App::run() {
         pointShader.use();
 
         if (pointSizeLocation != -1) {
-            pointShader.setFloat(pointSizeLocation, uiPointSize);
+            pointShader.setFloat(pointSizeLocation, ui.pointSize);
         }
         if (colorClass0Location != -1) {
             pointShader.setVec3(colorClass0Location, 0.2f, 0.6f, 1.0f);
