@@ -18,7 +18,8 @@ inline float relu(float x) {
 }
 
 ToyNet::ToyNet()
-    : m_learningRate(0.1f)
+    : m_initMode(InitMode::HeUniform)
+    , m_learningRate(0.1f)
     , m_optimizerType(OptimizerType::SGD)
     , m_momentum(0.9f)
     , m_adamBeta1(0.9f)
@@ -67,17 +68,49 @@ ToyNet::ToyNet()
 void ToyNet::resetParameters(unsigned int seed) {
     std::srand(seed);
 
-    auto randUniform = []() {
-        return static_cast<float>(std::rand()) / static_cast<float>(RAND_MAX) * 2.0f - 1.0f;
+    auto randUniform01 = []() {
+        return static_cast<float>(std::rand()) / static_cast<float>(RAND_MAX);
     };
 
-    const float scale1 = 1.0f / std::sqrt(static_cast<float>(InputDim));
-    const float scale2 = 1.0f / std::sqrt(static_cast<float>(Hidden1));
-    const float scale3 = 1.0f / std::sqrt(static_cast<float>(Hidden2));
+    auto randUniformSigned = [&]() {
+        return 2.0f * randUniform01() - 1.0f;
+    };
 
-    for (auto& w : m_W1) w = scale1 * randUniform();
-    for (auto& w : m_W2) w = scale2 * randUniform();
-    for (auto& w : m_W3) w = scale3 * randUniform();
+    auto randNormal01 = [&]() {
+        // Box-Muller transform for standard normal (mean 0, variance 1)
+        float u1 = randUniform01();
+        float u2 = randUniform01();
+        if (u1 < 1e-7f) u1 = 1e-7f;
+        float r     = std::sqrt(-2.0f * std::log(u1));
+        float theta = 6.28318530718f * u2; // 2*pi
+        return r * std::cos(theta);
+    };
+
+    const float fanIn1 = static_cast<float>(InputDim);
+    const float fanIn2 = static_cast<float>(Hidden1);
+    const float fanIn3 = static_cast<float>(Hidden2);
+
+    if (m_initMode == InitMode::Zero) {
+        std::fill(m_W1.begin(), m_W1.end(), 0.0f);
+        std::fill(m_W2.begin(), m_W2.end(), 0.0f);
+        std::fill(m_W3.begin(), m_W3.end(), 0.0f);
+    } else if (m_initMode == InitMode::HeUniform) {
+        const float limit1 = std::sqrt(6.0f / fanIn1);
+        const float limit2 = std::sqrt(6.0f / fanIn2);
+        const float limit3 = std::sqrt(6.0f / fanIn3);
+
+        for (auto& w : m_W1) w = limit1 * randUniformSigned();
+        for (auto& w : m_W2) w = limit2 * randUniformSigned();
+        for (auto& w : m_W3) w = limit3 * randUniformSigned();
+    } else { // HeNormal
+        const float std1 = std::sqrt(2.0f / fanIn1);
+        const float std2 = std::sqrt(2.0f / fanIn2);
+        const float std3 = std::sqrt(2.0f / fanIn3);
+
+        for (auto& w : m_W1) w = std1 * randNormal01();
+        for (auto& w : m_W2) w = std2 * randNormal01();
+        for (auto& w : m_W3) w = std3 * randNormal01();
+    }
 
     std::fill(m_b1.begin(), m_b1.end(), 0.0f);
     std::fill(m_b2.begin(), m_b2.end(), 0.0f);
@@ -378,6 +411,14 @@ void ToyNet::setLearningRate(float lr) {
 
 float ToyNet::getLearningRate() const {
     return m_learningRate;
+}
+
+void ToyNet::setInitMode(InitMode mode) {
+    m_initMode = mode;
+}
+
+InitMode ToyNet::getInitMode() const {
+    return m_initMode;
 }
 
 void ToyNet::setOptimizer(OptimizerType type) {

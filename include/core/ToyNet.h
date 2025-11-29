@@ -5,6 +5,12 @@
 #include "DataPoint.h"
 #include "Optimizer.h"
 
+enum class InitMode {
+    Zero = 0,
+    HeUniform = 1,
+    HeNormal = 2
+};
+
 struct ToyNet {
 public:
     static constexpr int InputDim  = 2;
@@ -29,6 +35,9 @@ public:
     void setLearningRate(float lr);
     float getLearningRate() const;
 
+    void setInitMode(InitMode mode);
+    InitMode getInitMode() const;
+
     void setOptimizer(OptimizerType type);
     void setOptimizerHyperparams(float momentum, float beta1, float beta2, float eps);
 
@@ -40,7 +49,8 @@ public:
     const std::vector<float>& getB3() const;
 
 private:
-    float m_learningRate;
+    InitMode     m_initMode;
+    float         m_learningRate;
 
     OptimizerType m_optimizerType;
     float         m_momentum;

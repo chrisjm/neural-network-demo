@@ -57,6 +57,17 @@ void drawControlPanel(UiState& ui,
     }
 
     ImGui::Separator();
+    const char* initNames[] = { "Zero", "He Uniform", "He Normal" };
+    int         initIdx     = static_cast<int>(trainer.initMode);
+    if (ImGui::Combo("Init Mode", &initIdx, initNames, IM_ARRAYSIZE(initNames))) {
+        if (initIdx < 0) initIdx = 0;
+        if (initIdx > 2) initIdx = 2;
+        trainer.initMode = static_cast<InitMode>(initIdx);
+        trainer.resetForNewDataset();
+    }
+    ImGui::TextWrapped("Initialization affects the starting weights before training.");
+
+    ImGui::Separator();
     ImGui::SliderFloat("Learning Rate", &trainer.learningRate, 0.0001f, 0.2f, "%.5f");
     ImGui::TextWrapped("Learning rate controls how big each weight update step is.");
     ImGui::SliderInt("Batch Size", &trainer.batchSize, 1, ToyNet::MaxBatch);

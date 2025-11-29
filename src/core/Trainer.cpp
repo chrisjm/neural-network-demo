@@ -11,6 +11,7 @@ Trainer::Trainer()
     , adamBeta1(0.9f)
     , adamBeta2(0.999f)
     , adamEps(1e-8f)
+    , initMode(InitMode::HeUniform)
     , stepCount(0)
     , lastLoss(0.0f)
     , lastAccuracy(0.0f)
@@ -20,6 +21,7 @@ Trainer::Trainer()
     m_batch.reserve(ToyNet::MaxBatch);
     lossHistory.reserve(HistorySize);
     accuracyHistory.reserve(HistorySize);
+    net.setInitMode(initMode);
     net.resetParameters();
     net.setOptimizer(optimizerType);
     net.setOptimizerHyperparams(momentum, adamBeta1, adamBeta2, adamEps);
@@ -27,6 +29,7 @@ Trainer::Trainer()
 
 void Trainer::resetForNewDataset()
 {
+    net.setInitMode(initMode);
     net.resetParameters();
     stepCount    = 0;
     lastLoss     = 0.0f;

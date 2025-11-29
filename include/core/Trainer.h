@@ -20,6 +20,8 @@ struct Trainer {
     float         adamBeta2;
     float         adamEps;
 
+    InitMode initMode;
+
     int   stepCount;
     float lastLoss;
     float lastAccuracy;
