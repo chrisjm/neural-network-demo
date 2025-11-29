@@ -1,11 +1,16 @@
-// Use GLAD as the OpenGL loader and prevent GLFW from including system GL headers.
+// Use GLAD as the OpenGL loader on desktop, and GLES3 headers on Emscripten.
 #ifdef __APPLE__
 #define GL_SILENCE_DEPRECATION
 #endif
 
+#ifdef __EMSCRIPTEN__
+#define GLFW_INCLUDE_ES3
+#include <GLFW/glfw3.h>
+#else
 #define GLFW_INCLUDE_NONE
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
+#endif
 
 #include <iostream>
 #include <fstream>

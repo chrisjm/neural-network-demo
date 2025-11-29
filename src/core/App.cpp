@@ -1,11 +1,16 @@
-// Use GLAD as the OpenGL loader and prevent GLFW from including system GL headers.
+// Use GLAD as the OpenGL loader on desktop, and GLES3 headers on Emscripten.
 #ifdef __APPLE__
 #define GL_SILENCE_DEPRECATION
 #endif
 
+#ifdef __EMSCRIPTEN__
+#define GLFW_INCLUDE_ES3
+#include <GLFW/glfw3.h>
+#else
 #define GLFW_INCLUDE_NONE
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
+#endif
 
 #include <iostream>
 #include <cmath>
@@ -73,13 +78,15 @@ bool App::init() {
 
     std::cout << "[Init] OpenGL context is now current" << std::endl;
 
-    // Load OpenGL function pointers via GLAD
+    // Load OpenGL function pointers via GLAD on native platforms.
+#ifndef __EMSCRIPTEN__
     if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) {
         std::cerr << "[Init] Failed to initialize GLAD" << std::endl;
         return false;
     }
 
     glEnable(GL_PROGRAM_POINT_SIZE);
+#endif
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
@@ -102,7 +109,11 @@ bool App::init() {
     ImGui::StyleColorsDark();
 
     ImGui_ImplGlfw_InitForOpenGL(m_window, true);
+#ifdef __EMSCRIPTEN__
+    ImGui_ImplOpenGL3_Init("#version 300 es");
+#else
     ImGui_ImplOpenGL3_Init("#version 330");  // matches your GL version
+#endif
 
     return true;
 }
