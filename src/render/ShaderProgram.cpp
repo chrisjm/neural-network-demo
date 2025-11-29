@@ -83,31 +83,53 @@ void ShaderProgram::use() const {
 }
 
 void ShaderProgram::setVec2(int location, float x, float y) const {
-    if (location != -1) {
-        glUniform2f(location, x, y);
+    if (location == -1) {
+#ifndef NDEBUG
+        std::cerr << "[ShaderProgram] Warning: setVec2 called with location == -1" << std::endl;
+#endif
+        return;
     }
+    glUniform2f(location, x, y);
 }
 
 void ShaderProgram::setVec3(int location, float x, float y, float z) const {
-    if (location != -1) {
-        glUniform3f(location, x, y, z);
+    if (location == -1) {
+#ifndef NDEBUG
+        std::cerr << "[ShaderProgram] Warning: setVec3 called with location == -1" << std::endl;
+#endif
+        return;
     }
+    glUniform3f(location, x, y, z);
 }
 
 void ShaderProgram::setInt(int location, int value) const {
-    if (location != -1) {
-        glUniform1i(location, value);
+    if (location == -1) {
+#ifndef NDEBUG
+        std::cerr << "[ShaderProgram] Warning: setInt called with location == -1" << std::endl;
+#endif
+        return;
     }
+    glUniform1i(location, value);
 }
 
 void ShaderProgram::setFloat(int location, float value) const {
-    if (location != -1) {
-        glUniform1f(location, value);
+    if (location == -1) {
+#ifndef NDEBUG
+        std::cerr << "[ShaderProgram] Warning: setFloat called with location == -1" << std::endl;
+#endif
+        return;
     }
+    glUniform1f(location, value);
 }
 
 void ShaderProgram::setFloatArray(int location, const float* data, int count) const {
-    if (location != -1 && data != nullptr && count > 0) {
+    if (location == -1) {
+#ifndef NDEBUG
+        std::cerr << "[ShaderProgram] Warning: setFloatArray called with location == -1" << std::endl;
+#endif
+        return;
+    }
+    if (data != nullptr && count > 0) {
         glUniform1fv(location, count, data);
     }
 }

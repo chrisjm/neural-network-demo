@@ -1,5 +1,7 @@
 #pragma once
 
+#include <string>
+
 struct GLFWwindow;
 
 // GLFW will call this when something goes wrong at the windowing/OS level
@@ -10,3 +12,6 @@ void check_gl_error(const char* label);
 
 // Helper function to resize the viewport if the user resizes the window
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
+
+// Helper to load a text file into a std::string (used for shader sources)
+std::string loadTextFile(const char* path);

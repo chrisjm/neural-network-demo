@@ -29,183 +29,11 @@
 // ==========================================
 // 1. THE SHADER SOURCE CODE (The "Recipe")
 // ==========================================
-// Usually these are in separate text files, but to show you they are just strings,
-// we put them right here in the C++ code.
-
-// VERTEX SHADER: The "Where" step.
-// It takes a 3D position (aPos), applies scale and rotation around the triangle's center, then adds an offset.
-const char *vertexShaderSource = "#version 330 core\n"
-    "layout (location = 0) in vec3 aPos;\n"
-    "uniform vec2  uOffset;\n"
-    "uniform float uScale;\n"
-    "uniform float uRotation;\n"
-    "void main()\n"
-    "{\n"
-    "   // Build a 2D transformation matrix from scale and rotation.\n"
-    "   float c = cos(uRotation);\n"
-    "   float s = sin(uRotation);\n"
-    "   mat3 scaleMat = mat3(\n"
-    "       uScale, 0.0,   0.0,\n"
-    "       0.0,   uScale, 0.0,\n"
-    "       0.0,   0.0,    1.0\n"
-    "   );\n"
-    "   mat3 rotMat = mat3(\n"
-    "       c,  -s,  0.0,\n"
-    "       s,   c,  0.0,\n"
-    "       0.0, 0.0, 1.0\n"
-    "   );\n"
-    "   mat3 transform = rotMat * scaleMat;\n"
-    "   // The triangle's center in its original coordinates is at (0, -1/6).\n"
-    "   vec2 pivot = vec2(0.0, -0.1666667);\n"
-    "   // Move into pivot space so we rotate around the center.\n"
-    "   vec3 localPos = vec3(aPos.xy - pivot, 0.0);\n"
-    "   vec3 rotatedScaled = transform * localPos;\n"
-    "   // Move back out of pivot space and then apply the user-controlled offset.\n"
-    "   vec2 worldPos2D = rotatedScaled.xy + pivot + uOffset;\n"
-    "   gl_Position = vec4(worldPos2D, aPos.z, 1.0);\n"
-    "}\0";
-
-// FRAGMENT SHADER: The "Color" step.
-// It outputs a color (FragColor) driven by a uniform (uColor) set from the CPU.
-const char *fragmentShaderSource = "#version 330 core\n"
-    "out vec4 FragColor;\n"
-    "uniform vec3 uColor;\n"
-    "void main()\n"
-    "{\n"
-    "   // RGB comes from a uniform so we can change it with keyboard input.\n"
-    "   FragColor = vec4(uColor, 1.0f);\n"
-    "}\n\0";
+// Shader programs are loaded from external text files in the shaders/ directory.
+// See shaders/*.vert and shaders/*.frag for the GLSL source.
 
 // Geometry-related helpers such as worldToLocal, pointInTriangle, and
 // pointInUnitSquare are provided by GeometryUtils.h/.cpp.
-
-// Point sprite shaders for scatter plot rendering.
-const char *pointVertexShaderSource = "#version 330 core\n"
-    "layout (location = 0) in vec2 aPos;\n"
-    "layout (location = 1) in float aLabel;\n"
-    "flat out int vLabel;\n"
-    "flat out int vIndex;\n"
-    "uniform float uPointSize;\n"
-    "void main()\n"
-    "{\n"
-    "    gl_Position = vec4(aPos, 0.0, 1.0);\n"
-    "    vLabel = int(aLabel + 0.5);\n"
-    "    vIndex = gl_VertexID;\n"
-    "    gl_PointSize = uPointSize;\n"
-    "}\n\0";
-
-const char *pointFragmentShaderSource = "#version 330 core\n"
-    "flat in int vLabel;\n"
-    "flat in int vIndex;\n"
-    "out vec4 FragColor;\n"
-    "uniform vec3 uColorClass0;\n"
-    "uniform vec3 uColorClass1;\n"
-    "uniform int  uSelectedIndex;\n"
-    "void main()\n"
-    "{\n"
-    "    vec2 d = gl_PointCoord - vec2(0.5);\n"
-    "    float r2 = dot(d, d);\n"
-    "    if (r2 > 0.25) discard;\n"
-    "    bool isSelected = (uSelectedIndex >= 0 && vIndex == uSelectedIndex);\n"
-    "    if (isSelected && r2 > 0.16 && r2 < 0.25) {\n"
-    "        FragColor = vec4(0.0, 0.0, 0.0, 1.0);\n"
-    "        return;\n"
-    "    }\n"
-    "    vec3 color = (vLabel == 0) ? uColorClass0 : uColorClass1;\n"
-    "    FragColor = vec4(color, 1.0);\n"
-    "}\n\0";
-
-const char *gridVertexShaderSource = "#version 330 core\n"
-    "layout (location = 0) in vec2 aPos;\n"
-    "void main()\n"
-    "{\n"
-    "    gl_Position = vec4(aPos, 0.0, 1.0);\n"
-    "}\n\0";
-
-const char *gridFragmentShaderSource = "#version 330 core\n"
-    "out vec4 FragColor;\n"
-    "uniform vec3 uColor;\n"
-    "void main()\n"
-    "{\n"
-    "    FragColor = vec4(uColor, 1.0);\n"
-    "}\n\0";
-
-const char *fieldVertexShaderSource = "#version 330 core\n"
-    "layout (location = 0) in vec2 aPos;\n"
-    "out vec2 vPos;\n"
-    "void main()\n"
-    "{\n"
-    "    vPos = aPos;\n"
-    "    gl_Position = vec4(aPos, 0.0, 1.0);\n"
-    "}\n\0";
-
-const char *fieldFragmentShaderSource = "#version 330 core\n"
-    "in vec2 vPos;\n"
-    "out vec4 FragColor;\n"
-    "const int INPUT_DIM  = 2;\n"
-    "const int HIDDEN1    = 4;\n"
-    "const int HIDDEN2    = 8;\n"
-    "const int OUTPUT_DIM = 2;\n"
-    "uniform float u_W1[HIDDEN1 * INPUT_DIM];\n"
-    "uniform float u_b1[HIDDEN1];\n"
-    "uniform float u_W2[HIDDEN2 * HIDDEN1];\n"
-    "uniform float u_b2[HIDDEN2];\n"
-    "uniform float u_W3[OUTPUT_DIM * HIDDEN2];\n"
-    "uniform float u_b3[OUTPUT_DIM];\n"
-    "void main()\n"
-    "{\n"
-    "    float a0[INPUT_DIM];\n"
-    "    a0[0] = vPos.x;\n"
-    "    a0[1] = vPos.y;\n"
-    "    float a1[HIDDEN1];\n"
-    "    for (int j = 0; j < HIDDEN1; ++j) {\n"
-    "        float sum = u_b1[j];\n"
-    "        for (int i = 0; i < INPUT_DIM; ++i) {\n"
-    "            int idx = j * INPUT_DIM + i;\n"
-    "            sum += u_W1[idx] * a0[i];\n"
-    "        }\n"
-    "        a1[j] = max(sum, 0.0);\n"
-    "    }\n"
-    "    float a2[HIDDEN2];\n"
-    "    for (int j = 0; j < HIDDEN2; ++j) {\n"
-    "        float sum = u_b2[j];\n"
-    "        for (int i = 0; i < HIDDEN1; ++i) {\n"
-    "            int idx = j * HIDDEN1 + i;\n"
-    "            sum += u_W2[idx] * a1[i];\n"
-    "        }\n"
-    "        a2[j] = max(sum, 0.0);\n"
-    "    }\n"
-    "    float logits[OUTPUT_DIM];\n"
-    "    float maxLogit = -1e30;\n"
-    "    for (int k = 0; k < OUTPUT_DIM; ++k) {\n"
-    "        float sum = u_b3[k];\n"
-    "        for (int j = 0; j < HIDDEN2; ++j) {\n"
-    "            int idx = k * HIDDEN2 + j;\n"
-    "            sum += u_W3[idx] * a2[j];\n"
-    "        }\n"
-    "        logits[k] = sum;\n"
-    "        if (sum > maxLogit) maxLogit = sum;\n"
-    "    }\n"
-    "    float expSum = 0.0;\n"
-    "    float probs[OUTPUT_DIM];\n"
-    "    for (int k = 0; k < OUTPUT_DIM; ++k) {\n"
-    "        float e = exp(logits[k] - maxLogit);\n"
-    "        probs[k] = e;\n"
-    "        expSum += e;\n"
-    "    }\n"
-    "    if (expSum <= 0.0) {\n"
-    "        FragColor = vec4(0.5, 0.5, 0.5, 0.4);\n"
-    "        return;\n"
-    "    }\n"
-    "    for (int k = 0; k < OUTPUT_DIM; ++k) {\n"
-    "        probs[k] /= expSum;\n"
-    "    }\n"
-    "    float p1 = probs[1];\n"
-    "    vec3 c0 = vec3(0.2, 0.6, 1.0);\n"
-    "    vec3 c1 = vec3(1.0, 0.5, 0.2);\n"
-    "    vec3 color = mix(c0, c1, p1);\n"
-    "    FragColor = vec4(color, 0.4);\n"
-    "}\n\0";
 
 App::App()
     : m_window(nullptr) {
@@ -292,7 +120,9 @@ int App::run() {
     // ==========================================
 
     // Point sprite shader program for scatter plot rendering.
-    ShaderProgram pointShader(pointVertexShaderSource, pointFragmentShaderSource);
+    std::string pointVertexSrc   = loadTextFile("shaders/point.vert");
+    std::string pointFragmentSrc = loadTextFile("shaders/point.frag");
+    ShaderProgram pointShader(pointVertexSrc.c_str(), pointFragmentSrc.c_str());
 
     check_gl_error("After point shader program link");
 
@@ -302,11 +132,15 @@ int App::run() {
     int selectedIndexLocation = glGetUniformLocation(pointShader.getId(), "uSelectedIndex");
 
     // Simple line shader for grid and axes.
-    ShaderProgram gridShader(gridVertexShaderSource, gridFragmentShaderSource);
+    std::string gridVertexSrc   = loadTextFile("shaders/grid.vert");
+    std::string gridFragmentSrc = loadTextFile("shaders/grid.frag");
+    ShaderProgram gridShader(gridVertexSrc.c_str(), gridFragmentSrc.c_str());
     int gridColorLocation = glGetUniformLocation(gridShader.getId(), "uColor");
 
     // Shader for decision-boundary background field.
-    ShaderProgram fieldShader(fieldVertexShaderSource, fieldFragmentShaderSource);
+    std::string fieldVertexSrc   = loadTextFile("shaders/field.vert");
+    std::string fieldFragmentSrc = loadTextFile("shaders/field.frag");
+    ShaderProgram fieldShader(fieldVertexSrc.c_str(), fieldFragmentSrc.c_str());
     int fieldW1Location = glGetUniformLocation(fieldShader.getId(), "u_W1");
     int fieldB1Location = glGetUniformLocation(fieldShader.getId(), "u_b1");
     int fieldW2Location = glGetUniformLocation(fieldShader.getId(), "u_W2");
@@ -413,12 +247,19 @@ int App::run() {
         glClear(GL_COLOR_BUFFER_BIT);
 
         fieldShader.use();
-        fieldShader.setFloatArray(fieldW1Location, trainer.net.W1.data(), static_cast<int>(trainer.net.W1.size()));
-        fieldShader.setFloatArray(fieldB1Location, trainer.net.b1.data(), static_cast<int>(trainer.net.b1.size()));
-        fieldShader.setFloatArray(fieldW2Location, trainer.net.W2.data(), static_cast<int>(trainer.net.W2.size()));
-        fieldShader.setFloatArray(fieldB2Location, trainer.net.b2.data(), static_cast<int>(trainer.net.b2.size()));
-        fieldShader.setFloatArray(fieldW3Location, trainer.net.W3.data(), static_cast<int>(trainer.net.W3.size()));
-        fieldShader.setFloatArray(fieldB3Location, trainer.net.b3.data(), static_cast<int>(trainer.net.b3.size()));
+        const auto& W1 = trainer.net.getW1();
+        const auto& B1 = trainer.net.getB1();
+        const auto& W2 = trainer.net.getW2();
+        const auto& B2 = trainer.net.getB2();
+        const auto& W3 = trainer.net.getW3();
+        const auto& B3 = trainer.net.getB3();
+
+        fieldShader.setFloatArray(fieldW1Location, W1.data(), static_cast<int>(W1.size()));
+        fieldShader.setFloatArray(fieldB1Location, B1.data(), static_cast<int>(B1.size()));
+        fieldShader.setFloatArray(fieldW2Location, W2.data(), static_cast<int>(W2.size()));
+        fieldShader.setFloatArray(fieldB2Location, B2.data(), static_cast<int>(B2.size()));
+        fieldShader.setFloatArray(fieldW3Location, W3.data(), static_cast<int>(W3.size()));
+        fieldShader.setFloatArray(fieldB3Location, B3.data(), static_cast<int>(B3.size()));
         fieldVis.draw();
 
         gridShader.use();

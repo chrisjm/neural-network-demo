@@ -136,11 +136,18 @@ void drawNetworkDiagram(const ToyNet& net,
     };
 
     // Connections: Input -> Hidden1 (W1)
+    const auto& W1 = net.getW1();
+    const auto& B1 = net.getB1();
+    const auto& W2 = net.getW2();
+    const auto& B2 = net.getB2();
+    const auto& W3 = net.getW3();
+    const auto& B3 = net.getB3();
+
     for (int j = 0; j < ToyNet::Hidden1; ++j) {
         ImVec2 toPos = nodePos(1, j);
         for (int i = 0; i < ToyNet::InputDim; ++i) {
             ImVec2 fromPos = nodePos(0, i);
-            float w = net.W1[j * ToyNet::InputDim + i];
+            float w = W1[j * ToyNet::InputDim + i];
             float thickness = weightThickness(w);
             drawList->AddLine(fromPos, toPos, weightColor(w), thickness);
 
@@ -157,7 +164,7 @@ void drawNetworkDiagram(const ToyNet& net,
         ImVec2 toPos = nodePos(2, j);
         for (int i = 0; i < ToyNet::Hidden1; ++i) {
             ImVec2 fromPos = nodePos(1, i);
-            float w = net.W2[j * ToyNet::Hidden1 + i];
+            float w = W2[j * ToyNet::Hidden1 + i];
             float thickness = weightThickness(w);
             drawList->AddLine(fromPos, toPos, weightColor(w), thickness);
 
@@ -174,7 +181,7 @@ void drawNetworkDiagram(const ToyNet& net,
         ImVec2 toPos = nodePos(3, k);
         for (int j = 0; j < ToyNet::Hidden2; ++j) {
             ImVec2 fromPos = nodePos(2, j);
-            float w = net.W3[k * ToyNet::Hidden2 + j];
+            float w = W3[k * ToyNet::Hidden2 + j];
             float thickness = weightThickness(w);
             drawList->AddLine(fromPos, toPos, weightColor(w), thickness);
 
@@ -204,12 +211,12 @@ void drawNetworkDiagram(const ToyNet& net,
             ImVec2 p = nodePos(layer, i);
 
             float bias = 0.0f;
-            if (layer == 1 && i < static_cast<int>(net.b1.size())) {
-                bias = net.b1[i];
-            } else if (layer == 2 && i < static_cast<int>(net.b2.size())) {
-                bias = net.b2[i];
-            } else if (layer == 3 && i < static_cast<int>(net.b3.size())) {
-                bias = net.b3[i];
+            if (layer == 1 && i < static_cast<int>(B1.size())) {
+                bias = B1[i];
+            } else if (layer == 2 && i < static_cast<int>(B2.size())) {
+                bias = B2[i];
+            } else if (layer == 3 && i < static_cast<int>(B3.size())) {
+                bias = B3[i];
             }
 
             if (bias != 0.0f) {

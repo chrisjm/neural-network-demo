@@ -65,7 +65,7 @@ void Trainer::stepOnce(const std::vector<DataPoint>& dataset)
         return;
     }
 
-    net.learningRate = learningRate;
+    net.setLearningRate(learningRate);
 
     makeBatch(dataset);
 

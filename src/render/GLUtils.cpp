@@ -8,6 +8,8 @@
 #include <GLFW/glfw3.h>
 
 #include <iostream>
+#include <fstream>
+#include <sstream>
 
 #include "GLUtils.h"
 
@@ -30,4 +32,28 @@ void check_gl_error(const char* label) {
 void framebuffer_size_callback(GLFWwindow* window, int width, int height) {
     std::cout << "[Callback] framebuffer_size_callback: width=" << width << ", height=" << height << std::endl;
     glViewport(0, 0, width, height);
+}
+
+std::string loadTextFile(const char* path) {
+    if (!path) {
+        std::cerr << "[File] Failed to open text file: <null path>" << std::endl;
+        return std::string();
+    }
+
+    // First, try the path as-is (e.g., when running from project root).
+    std::ifstream file(path);
+    if (!file) {
+        // Fallback: try looking one directory up (common when running from build/).
+        std::string altPath = std::string("../") + path;
+        file.open(altPath);
+        if (!file) {
+            std::cerr << "[File] Failed to open text file: " << path
+                      << " or " << altPath << std::endl;
+            return std::string();
+        }
+    }
+
+    std::ostringstream ss;
+    ss << file.rdbuf();
+    return ss.str();
 }

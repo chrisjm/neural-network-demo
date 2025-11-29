@@ -5,36 +5,12 @@
 #include "DataPoint.h"
 
 struct ToyNet {
-
+public:
     static constexpr int InputDim  = 2;
     static constexpr int Hidden1   = 4;
     static constexpr int Hidden2   = 8;
     static constexpr int OutputDim = 2;
     static constexpr int MaxBatch  = 256;
-
-    float learningRate = 0.1f;
-
-    std::vector<float> W1;
-    std::vector<float> b1;
-    std::vector<float> W2;
-    std::vector<float> b2;
-    std::vector<float> W3;
-    std::vector<float> b3;
-
-    std::vector<float> a0;
-    std::vector<float> z1;
-    std::vector<float> a1;
-    std::vector<float> z2;
-    std::vector<float> a2;
-    std::vector<float> logits;
-    std::vector<float> probs;
-
-    std::vector<float> dW1;
-    std::vector<float> db1;
-    std::vector<float> dW2;
-    std::vector<float> db2;
-    std::vector<float> dW3;
-    std::vector<float> db3;
 
     ToyNet();
 
@@ -48,4 +24,39 @@ struct ToyNet {
                                       float* outA2) const;
 
     void forwardSingle(float x, float y, float& p0, float& p1) const;
+
+    void setLearningRate(float lr);
+    float getLearningRate() const;
+
+    const std::vector<float>& getW1() const;
+    const std::vector<float>& getB1() const;
+    const std::vector<float>& getW2() const;
+    const std::vector<float>& getB2() const;
+    const std::vector<float>& getW3() const;
+    const std::vector<float>& getB3() const;
+
+private:
+    float m_learningRate;
+
+    std::vector<float> m_W1;
+    std::vector<float> m_b1;
+    std::vector<float> m_W2;
+    std::vector<float> m_b2;
+    std::vector<float> m_W3;
+    std::vector<float> m_b3;
+
+    std::vector<float> m_a0;
+    std::vector<float> m_z1;
+    std::vector<float> m_a1;
+    std::vector<float> m_z2;
+    std::vector<float> m_a2;
+    std::vector<float> m_logits;
+    std::vector<float> m_probs;
+
+    std::vector<float> m_dW1;
+    std::vector<float> m_db1;
+    std::vector<float> m_dW2;
+    std::vector<float> m_db2;
+    std::vector<float> m_dW3;
+    std::vector<float> m_db3;
 };
