@@ -5,6 +5,14 @@
 
 namespace {
 
+const char* kDatasetTypeNames[DatasetTypeCount] = {
+    "Two Blobs",
+    "Concentric Circles",
+    "Two Moons",
+    "XOR Quadrants",
+    "Spirals"
+};
+
 float rand01()
 {
     return static_cast<float>(std::rand()) / static_cast<float>(RAND_MAX);
@@ -173,4 +181,18 @@ void generateDataset(DatasetType type,
             generateSpirals(numPoints, spread, out);
             break;
     }
+}
+
+const char* const* getDatasetTypeNames()
+{
+    return kDatasetTypeNames;
+}
+
+const char* datasetTypeToString(DatasetType type)
+{
+    int index = static_cast<int>(type);
+    if (index < 0 || index >= DatasetTypeCount) {
+        return "Unknown";
+    }
+    return kDatasetTypeNames[index];
 }

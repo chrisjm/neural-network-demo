@@ -1,6 +1,7 @@
 #include "ControlPanel.h"
 
 #include "ToyNet.h"
+#include "DatasetGenerator.h"
 
 #include "imgui.h"
 
@@ -15,15 +16,9 @@ void drawControlPanel(UiState& ui,
 
     ImGui::Begin("Neural Net Demo");
 
-    static const char* datasetNames[] = {
-        "Two Blobs",
-        "Concentric Circles",
-        "Two Moons",
-        "XOR Quadrants",
-        "Spirals"
-    };
+    const char* const* datasetNames = getDatasetTypeNames();
 
-    if (ImGui::Combo("Dataset", &ui.datasetIndex, datasetNames, IM_ARRAYSIZE(datasetNames))) {
+    if (ImGui::Combo("Dataset", &ui.datasetIndex, datasetNames, DatasetTypeCount)) {
         regenerateRequested = true;
     }
 
