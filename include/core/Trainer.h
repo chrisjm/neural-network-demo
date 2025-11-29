@@ -24,9 +24,9 @@ struct Trainer {
     float lastLoss;
     float lastAccuracy;
 
-    static constexpr int HistorySize = 512;
-    float lossHistory[HistorySize];
-    float accuracyHistory[HistorySize];
+    static constexpr int HistorySize = 4096;
+    std::vector<float> lossHistory;
+    std::vector<float> accuracyHistory;
     int   historyCount;
 
     Trainer();
