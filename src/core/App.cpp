@@ -133,8 +133,10 @@ const char *fieldFragmentShaderSource = "#version 330 core\n"
     "out vec4 FragColor;\n"
     "const int INPUT_DIM  = 2;\n"
     "const int HIDDEN1    = 4;\n"
-    "const int HIDDEN2    = 4;\n"
+    "const int HIDDEN2    = 8;\n"
     "const int OUTPUT_DIM = 2;\n"
+    "uniform int u_Hidden1;\n"
+    "uniform int u_Hidden2;\n"
     "uniform float u_W1[HIDDEN1 * INPUT_DIM];\n"
     "uniform float u_b1[HIDDEN1];\n"
     "uniform float u_W2[HIDDEN2 * HIDDEN1];\n"
@@ -147,7 +149,7 @@ const char *fieldFragmentShaderSource = "#version 330 core\n"
     "    a0[0] = vPos.x;\n"
     "    a0[1] = vPos.y;\n"
     "    float a1[HIDDEN1];\n"
-    "    for (int j = 0; j < HIDDEN1; ++j) {\n"
+    "    for (int j = 0; j < u_Hidden1; ++j) {\n"
     "        float sum = u_b1[j];\n"
     "        for (int i = 0; i < INPUT_DIM; ++i) {\n"
     "            int idx = j * INPUT_DIM + i;\n"
@@ -156,10 +158,10 @@ const char *fieldFragmentShaderSource = "#version 330 core\n"
     "        a1[j] = max(sum, 0.0);\n"
     "    }\n"
     "    float a2[HIDDEN2];\n"
-    "    for (int j = 0; j < HIDDEN2; ++j) {\n"
+    "    for (int j = 0; j < u_Hidden2; ++j) {\n"
     "        float sum = u_b2[j];\n"
-    "        for (int i = 0; i < HIDDEN1; ++i) {\n"
-    "            int idx = j * HIDDEN1 + i;\n"
+    "        for (int i = 0; i < u_Hidden1; ++i) {\n"
+    "            int idx = j * u_Hidden1 + i;\n"
     "            sum += u_W2[idx] * a1[i];\n"
     "        }\n"
     "        a2[j] = max(sum, 0.0);\n"
@@ -168,8 +170,8 @@ const char *fieldFragmentShaderSource = "#version 330 core\n"
     "    float maxLogit = -1e30;\n"
     "    for (int k = 0; k < OUTPUT_DIM; ++k) {\n"
     "        float sum = u_b3[k];\n"
-    "        for (int j = 0; j < HIDDEN2; ++j) {\n"
-    "            int idx = k * HIDDEN2 + j;\n"
+    "        for (int j = 0; j < u_Hidden2; ++j) {\n"
+    "            int idx = k * u_Hidden2 + j;\n"
     "            sum += u_W3[idx] * a2[j];\n"
     "        }\n"
     "        logits[k] = sum;\n"
@@ -295,6 +297,8 @@ int App::run() {
 
     // Shader for decision-boundary background field.
     ShaderProgram fieldShader(fieldVertexShaderSource, fieldFragmentShaderSource);
+    int fieldHidden1Location = glGetUniformLocation(fieldShader.getId(), "u_Hidden1");
+    int fieldHidden2Location = glGetUniformLocation(fieldShader.getId(), "u_Hidden2");
     int fieldW1Location = glGetUniformLocation(fieldShader.getId(), "u_W1");
     int fieldB1Location = glGetUniformLocation(fieldShader.getId(), "u_b1");
     int fieldW2Location = glGetUniformLocation(fieldShader.getId(), "u_W2");
@@ -320,6 +324,8 @@ int App::run() {
     ui.numPoints    = 1000;
     ui.spread       = 0.25f;
     ui.pointSize    = 6.0f;
+    ui.hidden1      = 4;
+    ui.hidden2      = 8;
 
     generateDataset(currentDataset, ui.numPoints, ui.spread, dataset);
     pointCloud.upload(dataset);
@@ -333,6 +339,7 @@ int App::run() {
     fieldVis.init(fieldResolution);
 
     Trainer trainer;
+    trainer.net.setHiddenSizes(ui.hidden1, ui.hidden2);
 
     // ==========================================
     // 5. THE GAME LOOP
@@ -385,6 +392,12 @@ int App::run() {
         glClear(GL_COLOR_BUFFER_BIT);
 
         fieldShader.use();
+        if (fieldHidden1Location != -1) {
+            fieldShader.setInt(fieldHidden1Location, trainer.net.hidden1);
+        }
+        if (fieldHidden2Location != -1) {
+            fieldShader.setInt(fieldHidden2Location, trainer.net.hidden2);
+        }
         fieldShader.setFloatArray(fieldW1Location, trainer.net.W1.data(), static_cast<int>(trainer.net.W1.size()));
         fieldShader.setFloatArray(fieldB1Location, trainer.net.b1.data(), static_cast<int>(trainer.net.b1.size()));
         fieldShader.setFloatArray(fieldW2Location, trainer.net.W2.data(), static_cast<int>(trainer.net.W2.size()));

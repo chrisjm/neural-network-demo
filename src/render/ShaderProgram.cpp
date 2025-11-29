@@ -94,6 +94,12 @@ void ShaderProgram::setVec3(int location, float x, float y, float z) const {
     }
 }
 
+void ShaderProgram::setInt(int location, int value) const {
+    if (location != -1) {
+        glUniform1i(location, value);
+    }
+}
+
 void ShaderProgram::setFloat(int location, float value) const {
     if (location != -1) {
         glUniform1f(location, value);

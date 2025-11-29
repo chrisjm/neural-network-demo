@@ -11,6 +11,7 @@ void drawNetworkDiagram(const ToyNet& net)
 {
     ImGui::Separator();
     ImGui::Text("Network Diagram");
+    ImGui::Text("Architecture: 2 -> %d -> %d -> 2", net.hidden1, net.hidden2);
 
     const ImVec2 canvasSize(320.0f, 220.0f);
     ImVec2 canvasPos = ImGui::GetCursorScreenPos();
@@ -23,7 +24,7 @@ void drawNetworkDiagram(const ToyNet& net)
     ImGui::InvisibleButton("net_canvas", canvasSize);
 
     const int layerCount = 4;
-    int layerSizes[layerCount] = { ToyNet::InputDim, ToyNet::Hidden1, ToyNet::Hidden2, ToyNet::OutputDim };
+    int layerSizes[layerCount] = { ToyNet::InputDim, net.hidden1, net.hidden2, ToyNet::OutputDim };
 
     const float marginX = 30.0f;
     const float marginY = 20.0f;
@@ -64,33 +65,43 @@ void drawNetworkDiagram(const ToyNet& net)
         return IM_COL32(r, g, b, 180);
     };
 
+    auto weightThickness = [](float w) -> float {
+        float aw = std::fabs(w);
+        float t = aw / 2.0f;
+        if (t > 1.0f) t = 1.0f;
+        return 0.5f + 2.0f * t;
+    };
+
     // Connections: Input -> Hidden1 (W1)
-    for (int j = 0; j < ToyNet::Hidden1; ++j) {
+    for (int j = 0; j < net.hidden1; ++j) {
         ImVec2 toPos = nodePos(1, j);
         for (int i = 0; i < ToyNet::InputDim; ++i) {
             ImVec2 fromPos = nodePos(0, i);
             float w = net.W1[j * ToyNet::InputDim + i];
-            drawList->AddLine(fromPos, toPos, weightColor(w), 1.0f);
+            float thickness = weightThickness(w);
+            drawList->AddLine(fromPos, toPos, weightColor(w), thickness);
         }
     }
 
     // Connections: Hidden1 -> Hidden2 (W2)
-    for (int j = 0; j < ToyNet::Hidden2; ++j) {
+    for (int j = 0; j < net.hidden2; ++j) {
         ImVec2 toPos = nodePos(2, j);
-        for (int i = 0; i < ToyNet::Hidden1; ++i) {
+        for (int i = 0; i < net.hidden1; ++i) {
             ImVec2 fromPos = nodePos(1, i);
-            float w = net.W2[j * ToyNet::Hidden1 + i];
-            drawList->AddLine(fromPos, toPos, weightColor(w), 1.0f);
+            float w = net.W2[j * net.hidden1 + i];
+            float thickness = weightThickness(w);
+            drawList->AddLine(fromPos, toPos, weightColor(w), thickness);
         }
     }
 
     // Connections: Hidden2 -> Output (W3)
     for (int k = 0; k < ToyNet::OutputDim; ++k) {
         ImVec2 toPos = nodePos(3, k);
-        for (int j = 0; j < ToyNet::Hidden2; ++j) {
+        for (int j = 0; j < net.hidden2; ++j) {
             ImVec2 fromPos = nodePos(2, j);
-            float w = net.W3[k * ToyNet::Hidden2 + j];
-            drawList->AddLine(fromPos, toPos, weightColor(w), 1.0f);
+            float w = net.W3[k * net.hidden2 + j];
+            float thickness = weightThickness(w);
+            drawList->AddLine(fromPos, toPos, weightColor(w), thickness);
         }
     }
 
@@ -101,6 +112,34 @@ void drawNetworkDiagram(const ToyNet& net)
     for (int layer = 0; layer < layerCount; ++layer) {
         for (int i = 0; i < layerSizes[layer]; ++i) {
             ImVec2 p = nodePos(layer, i);
+
+            float bias = 0.0f;
+            if (layer == 1 && i < static_cast<int>(net.b1.size())) {
+                bias = net.b1[i];
+            } else if (layer == 2 && i < static_cast<int>(net.b2.size())) {
+                bias = net.b2[i];
+            } else if (layer == 3 && i < static_cast<int>(net.b3.size())) {
+                bias = net.b3[i];
+            }
+
+            if (bias != 0.0f) {
+                float ab = std::fabs(bias);
+                float t = ab / 2.0f;
+                if (t > 1.0f) t = 1.0f;
+                int r, g, b;
+                if (bias >= 0.0f) {
+                    r = static_cast<int>(150 + 80 * t);
+                    g = static_cast<int>(150 + 80 * t);
+                    b = 100;
+                } else {
+                    r = 100;
+                    g = static_cast<int>(150 + 80 * t);
+                    b = static_cast<int>(150 + 80 * t);
+                }
+                ImU32 haloColor = IM_COL32(r, g, b, 120);
+                drawList->AddCircleFilled(p, nodeRadius + 2.5f, haloColor, 16);
+            }
+
             drawList->AddCircleFilled(p, nodeRadius, nodeColor, 16);
         }
     }
@@ -141,6 +180,17 @@ void drawControlPanel(UiState& ui,
 
     ImGui::Separator();
     ImGui::SliderFloat("Point Size", &ui.pointSize, 2.0f, 12.0f);
+
+    ImGui::Separator();
+    int prevHidden1 = ui.hidden1;
+    int prevHidden2 = ui.hidden2;
+    ImGui::SliderInt("Hidden Layer 1", &ui.hidden1, ToyNet::MinHidden, ToyNet::MaxHidden);
+    ImGui::SliderInt("Hidden Layer 2", &ui.hidden2, ToyNet::MinHidden, ToyNet::MaxHidden);
+    ImGui::Text("Architecture: 2 -> %d -> %d -> 2", ui.hidden1, ui.hidden2);
+    if (ui.hidden1 != prevHidden1 || ui.hidden2 != prevHidden2) {
+        trainer.net.setHiddenSizes(ui.hidden1, ui.hidden2);
+        trainer.resetForNewDataset();
+    }
 
     ImGui::Separator();
     ImGui::SliderFloat("Learning Rate", &trainer.learningRate, 0.0001f, 1.0f, "%.5f");
