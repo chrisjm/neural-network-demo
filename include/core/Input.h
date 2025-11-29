@@ -1,7 +1,11 @@
 #pragma once
 
+#include <vector>
+
 struct GLFWwindow;
 struct Object2D;
+struct DataPoint;
+struct UiState;
 
 struct MouseDebugState {
     bool  hasClick;
@@ -35,3 +39,11 @@ void handleMouseInput(GLFWwindow* window,
                       bool& leftMousePressedLastFrame,
                       const float* triangleVertices,
                       MouseDebugState* debugState);
+
+// Handle mouse input for selecting a probe point in the neural net demo.
+// Clicks near dataset points will set UiState's probe position and selection.
+void handleProbeSelection(GLFWwindow* window,
+                          const std::vector<DataPoint>& dataset,
+                          UiState& ui,
+                          bool& leftMousePressedLastFrame,
+                          bool mouseOverGui);

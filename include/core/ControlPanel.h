@@ -12,6 +12,8 @@ struct UiState {
     bool  probeEnabled;
     float probeX;
     float probeY;
+    bool  hasSelectedPoint;
+    int   selectedPointIndex;
 };
 
 void drawControlPanel(UiState& ui,

@@ -12,6 +12,8 @@
 #include "Input.h"
 #include "Object2D.h"
 #include "GeometryUtils.h"
+#include "DataPoint.h"
+#include "ControlPanel.h"
 
 void handleKeyboardInput(GLFWwindow* window,
                          Object2D* objects,
@@ -176,6 +178,57 @@ void handleMouseInput(GLFWwindow* window,
                 // If both are hit (overlap), prefer the square for now.
                 selectedObject = 1;
                 std::cout << "[Pick] Selected square (overlap)" << std::endl;
+            }
+        }
+    }
+
+    leftMousePressedLastFrame = (leftState == GLFW_PRESS);
+}
+
+void handleProbeSelection(GLFWwindow* window,
+                          const std::vector<DataPoint>& dataset,
+                          UiState& ui,
+                          bool& leftMousePressedLastFrame,
+                          bool mouseOverGui)
+{
+    if (!window) {
+        return;
+    }
+
+    int leftState = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT);
+    if (leftState == GLFW_PRESS && !leftMousePressedLastFrame && !mouseOverGui) {
+        double mouseX = 0.0;
+        double mouseY = 0.0;
+        glfwGetCursorPos(window, &mouseX, &mouseY);
+
+        int winWidth = 0;
+        int winHeight = 0;
+        glfwGetWindowSize(window, &winWidth, &winHeight);
+        if (winWidth > 0 && winHeight > 0) {
+            float xNdc =  2.0f * static_cast<float>(mouseX) / static_cast<float>(winWidth) - 1.0f;
+            float yNdc =  1.0f - 2.0f * static_cast<float>(mouseY) / static_cast<float>(winHeight);
+
+            int   bestIndex = -1;
+            float bestDist2 = 0.0f;
+            const float pickRadius = 0.15f; // enlarged radius for easier selection
+            const float maxDist2   = pickRadius * pickRadius;
+
+            for (std::size_t i = 0; i < dataset.size(); ++i) {
+                float dx = dataset[i].x - xNdc;
+                float dy = dataset[i].y - yNdc;
+                float d2 = dx * dx + dy * dy;
+                if (d2 <= maxDist2 && (bestIndex < 0 || d2 < bestDist2)) {
+                    bestIndex = static_cast<int>(i);
+                    bestDist2 = d2;
+                }
+            }
+
+            if (bestIndex >= 0) {
+                ui.probeEnabled       = true;
+                ui.probeX             = dataset[bestIndex].x;
+                ui.probeY             = dataset[bestIndex].y;
+                ui.hasSelectedPoint   = true;
+                ui.selectedPointIndex = bestIndex;
             }
         }
     }

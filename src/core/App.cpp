@@ -24,6 +24,7 @@
 #include "PlotGeometry.h"
 #include "Trainer.h"
 #include "ControlPanel.h"
+#include "Input.h"
 
 // ==========================================
 // 1. THE SHADER SOURCE CODE (The "Recipe")
@@ -83,23 +84,33 @@ const char *pointVertexShaderSource = "#version 330 core\n"
     "layout (location = 0) in vec2 aPos;\n"
     "layout (location = 1) in float aLabel;\n"
     "flat out int vLabel;\n"
+    "flat out int vIndex;\n"
     "uniform float uPointSize;\n"
     "void main()\n"
     "{\n"
     "    gl_Position = vec4(aPos, 0.0, 1.0);\n"
     "    vLabel = int(aLabel + 0.5);\n"
+    "    vIndex = gl_VertexID;\n"
     "    gl_PointSize = uPointSize;\n"
     "}\n\0";
 
 const char *pointFragmentShaderSource = "#version 330 core\n"
     "flat in int vLabel;\n"
+    "flat in int vIndex;\n"
     "out vec4 FragColor;\n"
     "uniform vec3 uColorClass0;\n"
     "uniform vec3 uColorClass1;\n"
+    "uniform int  uSelectedIndex;\n"
     "void main()\n"
     "{\n"
     "    vec2 d = gl_PointCoord - vec2(0.5);\n"
-    "    if (dot(d, d) > 0.25) discard;\n"
+    "    float r2 = dot(d, d);\n"
+    "    if (r2 > 0.25) discard;\n"
+    "    bool isSelected = (uSelectedIndex >= 0 && vIndex == uSelectedIndex);\n"
+    "    if (isSelected && r2 > 0.16 && r2 < 0.25) {\n"
+    "        FragColor = vec4(0.0, 0.0, 0.0, 1.0);\n"
+    "        return;\n"
+    "    }\n"
     "    vec3 color = (vLabel == 0) ? uColorClass0 : uColorClass1;\n"
     "    FragColor = vec4(color, 1.0);\n"
     "}\n\0";
@@ -285,9 +296,10 @@ int App::run() {
 
     check_gl_error("After point shader program link");
 
-    int pointSizeLocation    = glGetUniformLocation(pointShader.getId(), "uPointSize");
-    int colorClass0Location  = glGetUniformLocation(pointShader.getId(), "uColorClass0");
-    int colorClass1Location  = glGetUniformLocation(pointShader.getId(), "uColorClass1");
+    int pointSizeLocation     = glGetUniformLocation(pointShader.getId(), "uPointSize");
+    int colorClass0Location   = glGetUniformLocation(pointShader.getId(), "uColorClass0");
+    int colorClass1Location   = glGetUniformLocation(pointShader.getId(), "uColorClass1");
+    int selectedIndexLocation = glGetUniformLocation(pointShader.getId(), "uSelectedIndex");
 
     // Simple line shader for grid and axes.
     ShaderProgram gridShader(gridVertexShaderSource, gridFragmentShaderSource);
@@ -316,13 +328,15 @@ int App::run() {
     DatasetType currentDataset = DatasetType::TwoBlobs;
 
     UiState ui;
-    ui.datasetIndex = static_cast<int>(currentDataset);
-    ui.numPoints    = 1000;
-    ui.spread       = 0.25f;
-    ui.pointSize    = 6.0f;
-    ui.probeEnabled = true;
-    ui.probeX       = 0.0f;
-    ui.probeY       = 0.0f;
+    ui.datasetIndex       = static_cast<int>(currentDataset);
+    ui.numPoints          = 1000;
+    ui.spread             = 0.5f;
+    ui.pointSize          = 8.0f;
+    ui.probeEnabled       = false;
+    ui.probeX             = 0.0f;
+    ui.probeY             = 0.0f;
+    ui.hasSelectedPoint   = false;
+    ui.selectedPointIndex = -1;
 
     generateDataset(currentDataset, ui.numPoints, ui.spread, dataset);
     pointCloud.upload(dataset);
@@ -337,6 +351,8 @@ int App::run() {
 
     Trainer trainer;
 
+    bool leftMousePressedLastFrame = false;
+
     // ==========================================
     // 5. THE GAME LOOP
     // ==========================================
@@ -349,6 +365,8 @@ int App::run() {
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
 
+        ImGuiIO& io = ImGui::GetIO();
+
         bool regenerate = false;
         bool stepTrainRequested = false;
 
@@ -358,12 +376,17 @@ int App::run() {
                          regenerate,
                          stepTrainRequested);
 
+        handleProbeSelection(window, dataset, ui, leftMousePressedLastFrame, io.WantCaptureMouse);
+
         if (regenerate) {
             if (ui.numPoints < 10) ui.numPoints = 10;
             if (ui.numPoints > maxPoints) ui.numPoints = maxPoints;
             currentDataset = static_cast<DatasetType>(ui.datasetIndex);
             generateDataset(currentDataset, ui.numPoints, ui.spread, dataset);
             pointCloud.upload(dataset);
+
+            ui.hasSelectedPoint   = false;
+            ui.selectedPointIndex = -1;
 
             trainer.resetForNewDataset();
             fieldVis.setDirty();
@@ -417,6 +440,14 @@ int App::run() {
         }
         if (colorClass1Location != -1) {
             pointShader.setVec3(colorClass1Location, 1.0f, 0.5f, 0.2f);
+        }
+        if (selectedIndexLocation != -1) {
+            int selIndex = -1;
+            if (ui.hasSelectedPoint && ui.selectedPointIndex >= 0 &&
+                ui.selectedPointIndex < static_cast<int>(dataset.size())) {
+                selIndex = ui.selectedPointIndex;
+            }
+            pointShader.setInt(selectedIndexLocation, selIndex);
         }
 
         pointCloud.draw(dataset.size());
