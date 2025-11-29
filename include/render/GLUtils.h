@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string>
+#include <optional>
 
 struct GLFWwindow;
 
@@ -14,4 +15,4 @@ void check_gl_error(const char* label);
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 
 // Helper to load a text file into a std::string (used for shader sources)
-std::string loadTextFile(const char* path);
+std::optional<std::string> loadTextFile(const char* path);

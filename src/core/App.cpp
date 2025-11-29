@@ -10,6 +10,7 @@
 #include <iostream>
 #include <cmath>
 #include <vector>
+#include <optional>
 
 #include "imgui.h"
 #include "backends/imgui_impl_glfw.h"
@@ -106,6 +107,23 @@ bool App::init() {
     return true;
 }
 
+void App::shutdownScene(PointCloud& pointCloud,
+                        GridAxes& gridAxes,
+                        FieldVisualizer& fieldVis) {
+    pointCloud.shutdown();
+    gridAxes.shutdown();
+    fieldVis.shutdown();
+}
+
+void App::shutdownApp() {
+    ImGui_ImplOpenGL3_Shutdown();
+    ImGui_ImplGlfw_Shutdown();
+    ImGui::DestroyContext();
+
+    glfwTerminate();
+    m_window = nullptr;
+}
+
 int App::run() {
     if (!m_window) {
         if (!init()) {
@@ -120,9 +138,14 @@ int App::run() {
     // ==========================================
 
     // Point sprite shader program for scatter plot rendering.
-    std::string pointVertexSrc   = loadTextFile("shaders/point.vert");
-    std::string pointFragmentSrc = loadTextFile("shaders/point.frag");
-    ShaderProgram pointShader(pointVertexSrc.c_str(), pointFragmentSrc.c_str());
+    auto pointVertexSrc   = loadTextFile("shaders/point.vert");
+    auto pointFragmentSrc = loadTextFile("shaders/point.frag");
+    if (!pointVertexSrc || !pointFragmentSrc) {
+        std::cerr << "[Init] Failed to load point shader sources" << std::endl;
+        shutdownApp();
+        return -1;
+    }
+    ShaderProgram pointShader(pointVertexSrc->c_str(), pointFragmentSrc->c_str());
 
     check_gl_error("After point shader program link");
 
@@ -132,15 +155,25 @@ int App::run() {
     int selectedIndexLocation = glGetUniformLocation(pointShader.getId(), "uSelectedIndex");
 
     // Simple line shader for grid and axes.
-    std::string gridVertexSrc   = loadTextFile("shaders/grid.vert");
-    std::string gridFragmentSrc = loadTextFile("shaders/grid.frag");
-    ShaderProgram gridShader(gridVertexSrc.c_str(), gridFragmentSrc.c_str());
+    auto gridVertexSrc   = loadTextFile("shaders/grid.vert");
+    auto gridFragmentSrc = loadTextFile("shaders/grid.frag");
+    if (!gridVertexSrc || !gridFragmentSrc) {
+        std::cerr << "[Init] Failed to load grid shader sources" << std::endl;
+        shutdownApp();
+        return -1;
+    }
+    ShaderProgram gridShader(gridVertexSrc->c_str(), gridFragmentSrc->c_str());
     int gridColorLocation = glGetUniformLocation(gridShader.getId(), "uColor");
 
     // Shader for decision-boundary background field.
-    std::string fieldVertexSrc   = loadTextFile("shaders/field.vert");
-    std::string fieldFragmentSrc = loadTextFile("shaders/field.frag");
-    ShaderProgram fieldShader(fieldVertexSrc.c_str(), fieldFragmentSrc.c_str());
+    auto fieldVertexSrc   = loadTextFile("shaders/field.vert");
+    auto fieldFragmentSrc = loadTextFile("shaders/field.frag");
+    if (!fieldVertexSrc || !fieldFragmentSrc) {
+        std::cerr << "[Init] Failed to load field shader sources" << std::endl;
+        shutdownApp();
+        return -1;
+    }
+    ShaderProgram fieldShader(fieldVertexSrc->c_str(), fieldFragmentSrc->c_str());
     int fieldW1Location = glGetUniformLocation(fieldShader.getId(), "u_W1");
     int fieldB1Location = glGetUniformLocation(fieldShader.getId(), "u_b1");
     int fieldW2Location = glGetUniformLocation(fieldShader.getId(), "u_W2");
@@ -191,6 +224,58 @@ int App::run() {
     // ==========================================
     // 5. THE GAME LOOP
     // ==========================================
+    renderLoop(window,
+               pointShader,
+               gridShader,
+               fieldShader,
+               pointSizeLocation,
+               colorClass0Location,
+               colorClass1Location,
+               selectedIndexLocation,
+               gridColorLocation,
+               fieldW1Location,
+               fieldB1Location,
+               fieldW2Location,
+               fieldB2Location,
+               fieldW3Location,
+               fieldB3Location,
+               ui,
+               dataset,
+               pointCloud,
+               gridAxes,
+               fieldVis,
+               trainer,
+               leftMousePressedLastFrame,
+               maxPoints);
+
+    shutdownScene(pointCloud, gridAxes, fieldVis);
+    shutdownApp();
+    return 0;
+}
+
+void App::renderLoop(GLFWwindow* window,
+                     ShaderProgram& pointShader,
+                     ShaderProgram& gridShader,
+                     ShaderProgram& fieldShader,
+                     int pointSizeLocation,
+                     int colorClass0Location,
+                     int colorClass1Location,
+                     int selectedIndexLocation,
+                     int gridColorLocation,
+                     int fieldW1Location,
+                     int fieldB1Location,
+                     int fieldW2Location,
+                     int fieldB2Location,
+                     int fieldW3Location,
+                     int fieldB3Location,
+                     UiState& ui,
+                     std::vector<DataPoint>& dataset,
+                     PointCloud& pointCloud,
+                     GridAxes& gridAxes,
+                     FieldVisualizer& fieldVis,
+                     Trainer& trainer,
+                     bool& leftMousePressedLastFrame,
+                     int maxPoints) {
     std::cout << "[Loop] Entering render loop" << std::endl;
     while (!glfwWindowShouldClose(window)) {
         if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
@@ -216,7 +301,7 @@ int App::run() {
         if (regenerate) {
             if (ui.numPoints < 10) ui.numPoints = 10;
             if (ui.numPoints > maxPoints) ui.numPoints = maxPoints;
-            currentDataset = static_cast<DatasetType>(ui.datasetIndex);
+            DatasetType currentDataset = static_cast<DatasetType>(ui.datasetIndex);
             generateDataset(currentDataset, ui.numPoints, ui.spread, dataset);
             pointCloud.upload(dataset);
 
@@ -301,15 +386,4 @@ int App::run() {
         glfwSwapBuffers(window);
         glfwPollEvents();
     }
-
-    pointCloud.shutdown();
-    gridAxes.shutdown();
-    fieldVis.shutdown();
-
-    ImGui_ImplOpenGL3_Shutdown();
-    ImGui_ImplGlfw_Shutdown();
-    ImGui::DestroyContext();
-
-    glfwTerminate();
-    return 0;
 }

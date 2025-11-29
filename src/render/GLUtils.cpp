@@ -34,10 +34,10 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height) {
     glViewport(0, 0, width, height);
 }
 
-std::string loadTextFile(const char* path) {
+std::optional<std::string> loadTextFile(const char* path) {
     if (!path) {
         std::cerr << "[File] Failed to open text file: <null path>" << std::endl;
-        return std::string();
+        return std::nullopt;
     }
 
     // First, try the path as-is (e.g., when running from project root).
@@ -49,7 +49,7 @@ std::string loadTextFile(const char* path) {
         if (!file) {
             std::cerr << "[File] Failed to open text file: " << path
                       << " or " << altPath << std::endl;
-            return std::string();
+            return std::nullopt;
         }
     }
 
