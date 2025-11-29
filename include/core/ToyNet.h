@@ -6,14 +6,11 @@
 
 struct ToyNet {
 
-    static constexpr int InputDim   = 2;
-    static constexpr int MinHidden  = 2;
-    static constexpr int MaxHidden  = 8;
-    static constexpr int OutputDim  = 2;
-    static constexpr int MaxBatch   = 256;
-
-    int   hidden1;
-    int   hidden2;
+    static constexpr int InputDim  = 2;
+    static constexpr int Hidden1   = 4;
+    static constexpr int Hidden2   = 8;
+    static constexpr int OutputDim = 2;
+    static constexpr int MaxBatch  = 256;
 
     float learningRate = 0.1f;
 
@@ -42,8 +39,6 @@ struct ToyNet {
     ToyNet();
 
     void resetParameters(unsigned int seed = 1);
-
-    void setHiddenSizes(int h1, int h2);
 
     float trainBatch(const std::vector<DataPoint>& batch, float& outAccuracy);
 

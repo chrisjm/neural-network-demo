@@ -18,9 +18,28 @@ inline float relu(float x) {
 }
 
 ToyNet::ToyNet() {
-    hidden1 = 4;
-    hidden2 = 4;
-    setHiddenSizes(hidden1, hidden2);
+    W1.resize(Hidden1 * InputDim);
+    b1.resize(Hidden1);
+    W2.resize(Hidden2 * Hidden1);
+    b2.resize(Hidden2);
+    W3.resize(OutputDim * Hidden2);
+    b3.resize(OutputDim);
+
+    a0.resize(MaxBatch * InputDim);
+    z1.resize(MaxBatch * Hidden1);
+    a1.resize(MaxBatch * Hidden1);
+    z2.resize(MaxBatch * Hidden2);
+    a2.resize(MaxBatch * Hidden2);
+    logits.resize(MaxBatch * OutputDim);
+    probs.resize(MaxBatch * OutputDim);
+
+    dW1.resize(W1.size());
+    db1.resize(b1.size());
+    dW2.resize(W2.size());
+    db2.resize(b2.size());
+    dW3.resize(W3.size());
+    db3.resize(b3.size());
+
     resetParameters(1);
 }
 
@@ -32,8 +51,8 @@ void ToyNet::resetParameters(unsigned int seed) {
     };
 
     const float scale1 = 1.0f / std::sqrt(static_cast<float>(InputDim));
-    const float scale2 = 1.0f / std::sqrt(static_cast<float>(hidden1));
-    const float scale3 = 1.0f / std::sqrt(static_cast<float>(hidden2));
+    const float scale2 = 1.0f / std::sqrt(static_cast<float>(Hidden1));
+    const float scale3 = 1.0f / std::sqrt(static_cast<float>(Hidden2));
 
     for (auto& w : W1) w = scale1 * randUniform();
     for (auto& w : W2) w = scale2 * randUniform();
@@ -42,38 +61,6 @@ void ToyNet::resetParameters(unsigned int seed) {
     std::fill(b1.begin(), b1.end(), 0.0f);
     std::fill(b2.begin(), b2.end(), 0.0f);
     std::fill(b3.begin(), b3.end(), 0.0f);
-}
-
-void ToyNet::setHiddenSizes(int h1, int h2) {
-    if (h1 < MinHidden) h1 = MinHidden;
-    if (h1 > MaxHidden) h1 = MaxHidden;
-    if (h2 < MinHidden) h2 = MinHidden;
-    if (h2 > MaxHidden) h2 = MaxHidden;
-
-    hidden1 = h1;
-    hidden2 = h2;
-
-    W1.resize(hidden1 * InputDim);
-    b1.resize(hidden1);
-    W2.resize(hidden2 * hidden1);
-    b2.resize(hidden2);
-    W3.resize(OutputDim * hidden2);
-    b3.resize(OutputDim);
-
-    a0.resize(MaxBatch * InputDim);
-    z1.resize(MaxBatch * hidden1);
-    a1.resize(MaxBatch * hidden1);
-    z2.resize(MaxBatch * hidden2);
-    a2.resize(MaxBatch * hidden2);
-    logits.resize(MaxBatch * OutputDim);
-    probs.resize(MaxBatch * OutputDim);
-
-    dW1.resize(W1.size());
-    db1.resize(b1.size());
-    dW2.resize(W2.size());
-    db2.resize(b2.size());
-    dW3.resize(W3.size());
-    db3.resize(b3.size());
 }
 
 float ToyNet::trainBatch(const std::vector<DataPoint>& batch, float& outAccuracy) {
@@ -90,25 +77,27 @@ float ToyNet::trainBatch(const std::vector<DataPoint>& batch, float& outAccuracy
         a0[idx(n, 1, InputDim)] = batch[n].y;
     }
 
+    // Forward pass: layer 1
     for (int n = 0; n < batchSize; ++n) {
-        for (int j = 0; j < hidden1; ++j) {
+        for (int j = 0; j < Hidden1; ++j) {
             float sum = b1[j];
             for (int i = 0; i < InputDim; ++i) {
                 sum += W1[idx(j, i, InputDim)] * a0[idx(n, i, InputDim)];
             }
-            const int zIndex = idx(n, j, hidden1);
+            const int zIndex = idx(n, j, Hidden1);
             z1[zIndex] = sum;
             a1[zIndex] = relu(sum);
         }
     }
 
+    // Forward pass: layer 2
     for (int n = 0; n < batchSize; ++n) {
-        for (int j = 0; j < hidden2; ++j) {
+        for (int j = 0; j < Hidden2; ++j) {
             float sum = b2[j];
-            for (int i = 0; i < hidden1; ++i) {
-                sum += W2[idx(j, i, hidden1)] * a1[idx(n, i, hidden1)];
+            for (int i = 0; i < Hidden1; ++i) {
+                sum += W2[idx(j, i, Hidden1)] * a1[idx(n, i, Hidden1)];
             }
-            const int zIndex = idx(n, j, hidden2);
+            const int zIndex = idx(n, j, Hidden2);
             z2[zIndex] = sum;
             a2[zIndex] = relu(sum);
         }
@@ -123,8 +112,8 @@ float ToyNet::trainBatch(const std::vector<DataPoint>& batch, float& outAccuracy
         float maxLogit = -std::numeric_limits<float>::infinity();
         for (int k = 0; k < OutputDim; ++k) {
             float sum = b3[k];
-            for (int j = 0; j < hidden2; ++j) {
-                sum += W3[idx(k, j, hidden2)] * a2[idx(n, j, hidden2)];
+            for (int j = 0; j < Hidden2; ++j) {
+                sum += W3[idx(k, j, Hidden2)] * a2[idx(n, j, Hidden2)];
             }
             const int lIndex = idx(n, k, OutputDim);
             logits[lIndex] = sum;
@@ -187,48 +176,48 @@ float ToyNet::trainBatch(const std::vector<DataPoint>& batch, float& outAccuracy
             delta3[k] = probs[pIndex] - yk;
         }
 
-        float delta2Raw[MaxHidden];
-        for (int j = 0; j < hidden2; ++j) {
+        float delta2Raw[Hidden2];
+        for (int j = 0; j < Hidden2; ++j) {
             delta2Raw[j] = 0.0f;
         }
 
         // Gradients for W3, b3 and delta2Raw
         for (int k = 0; k < OutputDim; ++k) {
-            for (int j = 0; j < hidden2; ++j) {
-                dW3[idx(k, j, hidden2)] += delta3[k] * a2[idx(n, j, hidden2)];
-                delta2Raw[j] += delta3[k] * W3[idx(k, j, hidden2)];
+            for (int j = 0; j < Hidden2; ++j) {
+                dW3[idx(k, j, Hidden2)] += delta3[k] * a2[idx(n, j, Hidden2)];
+                delta2Raw[j] += delta3[k] * W3[idx(k, j, Hidden2)];
             }
             db3[k] += delta3[k];
         }
 
-        float delta2[MaxHidden];
-        for (int j = 0; j < hidden2; ++j) {
-            float z = z2[idx(n, j, hidden2)];
+        float delta2[Hidden2];
+        for (int j = 0; j < Hidden2; ++j) {
+            float z = z2[idx(n, j, Hidden2)];
             delta2[j] = (z > 0.0f) ? delta2Raw[j] : 0.0f;
         }
 
-        float delta1Raw[MaxHidden];
-        for (int i = 0; i < hidden1; ++i) {
+        float delta1Raw[Hidden1];
+        for (int i = 0; i < Hidden1; ++i) {
             delta1Raw[i] = 0.0f;
         }
 
         // Gradients for W2, b2 and delta1Raw
-        for (int j = 0; j < hidden2; ++j) {
-            for (int i = 0; i < hidden1; ++i) {
-                dW2[idx(j, i, hidden1)] += delta2[j] * a1[idx(n, i, hidden1)];
-                delta1Raw[i] += delta2[j] * W2[idx(j, i, hidden1)];
+        for (int j = 0; j < Hidden2; ++j) {
+            for (int i = 0; i < Hidden1; ++i) {
+                dW2[idx(j, i, Hidden1)] += delta2[j] * a1[idx(n, i, Hidden1)];
+                delta1Raw[i] += delta2[j] * W2[idx(j, i, Hidden1)];
             }
             db2[j] += delta2[j];
         }
 
-        float delta1[MaxHidden];
-        for (int i = 0; i < hidden1; ++i) {
-            float z = z1[idx(n, i, hidden1)];
+        float delta1[Hidden1];
+        for (int i = 0; i < Hidden1; ++i) {
+            float z = z1[idx(n, i, Hidden1)];
             delta1[i] = (z > 0.0f) ? delta1Raw[i] : 0.0f;
         }
 
         // Gradients for W1, b1
-        for (int i = 0; i < hidden1; ++i) {
+        for (int i = 0; i < Hidden1; ++i) {
             for (int d = 0; d < InputDim; ++d) {
                 dW1[idx(i, d, InputDim)] += delta1[i] * a0[idx(n, d, InputDim)];
             }
@@ -257,11 +246,11 @@ float ToyNet::trainBatch(const std::vector<DataPoint>& batch, float& outAccuracy
 
 void ToyNet::forwardSingle(float x, float y, float& p0, float& p1) const {
     float a_in[InputDim] = {x, y};
-    float a_h1[MaxHidden];
-    float a_h2[MaxHidden];
+    float a_h1[Hidden1];
+    float a_h2[Hidden2];
     float logitsLocal[OutputDim];
 
-    for (int j = 0; j < hidden1; ++j) {
+    for (int j = 0; j < Hidden1; ++j) {
         float sum = b1[j];
         for (int i = 0; i < InputDim; ++i) {
             sum += W1[idx(j, i, InputDim)] * a_in[i];
@@ -269,10 +258,10 @@ void ToyNet::forwardSingle(float x, float y, float& p0, float& p1) const {
         a_h1[j] = relu(sum);
     }
 
-    for (int j = 0; j < hidden2; ++j) {
+    for (int j = 0; j < Hidden2; ++j) {
         float sum = b2[j];
-        for (int i = 0; i < hidden1; ++i) {
-            sum += W2[idx(j, i, hidden1)] * a_h1[i];
+        for (int i = 0; i < Hidden1; ++i) {
+            sum += W2[idx(j, i, Hidden1)] * a_h1[i];
         }
         a_h2[j] = relu(sum);
     }
@@ -280,8 +269,8 @@ void ToyNet::forwardSingle(float x, float y, float& p0, float& p1) const {
     float maxLogit = -std::numeric_limits<float>::infinity();
     for (int k = 0; k < OutputDim; ++k) {
         float sum = b3[k];
-        for (int j = 0; j < hidden2; ++j) {
-            sum += W3[idx(k, j, hidden2)] * a_h2[j];
+        for (int j = 0; j < Hidden2; ++j) {
+            sum += W3[idx(k, j, Hidden2)] * a_h2[j];
         }
         logitsLocal[k] = sum;
         if (sum > maxLogit) maxLogit = sum;

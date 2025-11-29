@@ -9,8 +9,6 @@ struct UiState {
     int   numPoints;
     float spread;
     float pointSize;
-    int   hidden1;
-    int   hidden2;
 };
 
 void drawControlPanel(UiState& ui,
