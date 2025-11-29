@@ -338,12 +338,14 @@ int App::run() {
     glBindVertexArray(0);
 
     ToyNet net;
-    float uiLearningRate = 0.1f;
-    int   uiBatchSize    = 64;
-    bool  uiAutoTrain    = false;
-    int   uiStepCount    = 0;
-    float uiLastLoss     = 0.0f;
-    float uiLastAccuracy = 0.0f;
+    float uiLearningRate   = 0.1f;
+    int   uiBatchSize      = 64;
+    bool  uiAutoTrain      = false;
+    int   uiStepCount      = 0;
+    float uiLastLoss       = 0.0f;
+    float uiLastAccuracy   = 0.0f;
+    int   uiAutoMaxSteps   = 2000;
+    float uiAutoTargetLoss = 0.01f;
 
     std::vector<DataPoint> trainBatch;
     trainBatch.reserve(ToyNet::MaxBatch);
@@ -406,6 +408,11 @@ int App::run() {
         ImGui::Text("Loss: %.4f", uiLastLoss);
         ImGui::Text("Accuracy: %.3f", uiLastAccuracy);
 
+        ImGui::Separator();
+        ImGui::SliderInt("Auto Max Steps", &uiAutoMaxSteps, 1, 50000);
+        ImGui::SliderFloat("Auto Target Loss", &uiAutoTargetLoss, 0.00001f, 1.0f, "%.5f");
+        ImGui::Text("Auto stops when step >= %d or loss <= %.5f", uiAutoMaxSteps, uiAutoTargetLoss);
+
         ImGui::Text("Current points: %d", static_cast<int>(dataset.size()));
 
         ImGui::End();
@@ -416,6 +423,10 @@ int App::run() {
             makeBatch(uiBatchSize);
             uiLastLoss = net.trainBatch(trainBatch, uiLastAccuracy);
             ++uiStepCount;
+
+            if (uiStepCount >= uiAutoMaxSteps || uiLastLoss <= uiAutoTargetLoss) {
+                uiAutoTrain = false;
+            }
         }
 
         glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
