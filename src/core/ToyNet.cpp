@@ -245,6 +245,15 @@ float ToyNet::trainBatch(const std::vector<DataPoint>& batch, float& outAccuracy
 }
 
 void ToyNet::forwardSingle(float x, float y, float& p0, float& p1) const {
+    float a1[Hidden1];
+    float a2[Hidden2];
+    forwardSingleWithActivations(x, y, p0, p1, a1, a2);
+}
+
+void ToyNet::forwardSingleWithActivations(float x, float y,
+                                          float& p0, float& p1,
+                                          float* outA1,
+                                          float* outA2) const {
     float a_in[InputDim] = {x, y};
     float a_h1[Hidden1];
     float a_h2[Hidden2];
@@ -264,6 +273,17 @@ void ToyNet::forwardSingle(float x, float y, float& p0, float& p1) const {
             sum += W2[idx(j, i, Hidden1)] * a_h1[i];
         }
         a_h2[j] = relu(sum);
+    }
+
+    if (outA1) {
+        for (int j = 0; j < Hidden1; ++j) {
+            outA1[j] = a_h1[j];
+        }
+    }
+    if (outA2) {
+        for (int j = 0; j < Hidden2; ++j) {
+            outA2[j] = a_h2[j];
+        }
     }
 
     float maxLogit = -std::numeric_limits<float>::infinity();

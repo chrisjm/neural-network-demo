@@ -320,6 +320,9 @@ int App::run() {
     ui.numPoints    = 1000;
     ui.spread       = 0.25f;
     ui.pointSize    = 6.0f;
+    ui.probeEnabled = true;
+    ui.probeX       = 0.0f;
+    ui.probeY       = 0.0f;
 
     generateDataset(currentDataset, ui.numPoints, ui.spread, dataset);
     pointCloud.upload(dataset);

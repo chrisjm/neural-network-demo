@@ -7,7 +7,10 @@
 
 namespace {
 
-void drawNetworkDiagram(const ToyNet& net)
+void drawNetworkDiagram(const ToyNet& net,
+                        bool probeEnabled,
+                        float probeX,
+                        float probeY)
 {
     ImGui::Separator();
     ImGui::Text("Network Diagram");
@@ -72,6 +75,16 @@ void drawNetworkDiagram(const ToyNet& net)
         return 0.5f + 2.0f * t;
     };
 
+    float probeA1[ToyNet::Hidden1] = {};
+    float probeA2[ToyNet::Hidden2] = {};
+    float probeP0 = 0.0f;
+    float probeP1 = 0.0f;
+    bool  hasProbe = false;
+    if (probeEnabled) {
+        net.forwardSingleWithActivations(probeX, probeY, probeP0, probeP1, probeA1, probeA2);
+        hasProbe = true;
+    }
+
     // Connections: Input -> Hidden1 (W1)
     for (int j = 0; j < ToyNet::Hidden1; ++j) {
         ImVec2 toPos = nodePos(1, j);
@@ -107,7 +120,18 @@ void drawNetworkDiagram(const ToyNet& net)
 
     // Draw nodes on top of connections
     const float nodeRadius = 4.0f;
-    ImU32 nodeColor = IM_COL32(220, 220, 220, 255);
+    ImU32 baseNodeColor = IM_COL32(220, 220, 220, 255);
+
+    ImVec2 mousePos = ImGui::GetIO().MousePos;
+    bool   windowHovered = ImGui::IsWindowHovered();
+    bool   hasHover = false;
+    int    hoverLayer = -1;
+    int    hoverIndex = -1;
+    float  hoverBias = 0.0f;
+    float  hoverActivation = 0.0f;
+    float  hoverP0 = 0.0f;
+    float  hoverP1 = 0.0f;
+    float  bestDist2 = 0.0f;
 
     for (int layer = 0; layer < layerCount; ++layer) {
         for (int i = 0; i < layerSizes[layer]; ++i) {
@@ -140,9 +164,86 @@ void drawNetworkDiagram(const ToyNet& net)
                 drawList->AddCircleFilled(p, nodeRadius + 2.5f, haloColor, 16);
             }
 
+            float activation = 0.0f;
+            if (hasProbe) {
+                if (layer == 0) {
+                    activation = (i == 0) ? probeX : probeY;
+                } else if (layer == 1 && i < ToyNet::Hidden1) {
+                    activation = probeA1[i];
+                } else if (layer == 2 && i < ToyNet::Hidden2) {
+                    activation = probeA2[i];
+                } else if (layer == 3 && i < ToyNet::OutputDim) {
+                    activation = (i == 0) ? probeP0 : probeP1;
+                }
+            }
+
+            ImU32 nodeColor = baseNodeColor;
+            if (hasProbe) {
+                float a = activation;
+                float mag = std::fabs(a);
+                float t = mag / (mag + 1.0f);
+                int r, g, b;
+                if (a >= 0.0f) {
+                    r = static_cast<int>(200 + 55 * t);
+                    g = static_cast<int>(200 + 55 * t);
+                    b = static_cast<int>(180 - 80 * t);
+                } else {
+                    r = static_cast<int>(180 - 60 * t);
+                    g = static_cast<int>(200 + 40 * t);
+                    b = static_cast<int>(220 + 30 * t);
+                }
+                nodeColor = IM_COL32(r, g, b, 255);
+            }
+
             drawList->AddCircleFilled(p, nodeRadius, nodeColor, 16);
+
+            if (windowHovered) {
+                float dx = mousePos.x - p.x;
+                float dy = mousePos.y - p.y;
+                float dist2 = dx * dx + dy * dy;
+                float radius2 = nodeRadius * nodeRadius * 1.5f;
+                if (dist2 <= radius2 && (!hasHover || dist2 < bestDist2)) {
+                    hasHover = true;
+                    bestDist2 = dist2;
+                    hoverLayer = layer;
+                    hoverIndex = i;
+                    hoverBias = bias;
+                    hoverActivation = activation;
+                    hoverP0 = probeP0;
+                    hoverP1 = probeP1;
+                }
+            }
         }
     }
+
+    if (hasHover) {
+        const char* layerName = "";
+        if (hoverLayer == 0) layerName = "Input";
+        else if (hoverLayer == 1) layerName = "Hidden 1";
+        else if (hoverLayer == 2) layerName = "Hidden 2";
+        else if (hoverLayer == 3) layerName = "Output";
+
+        ImGui::BeginTooltip();
+        ImGui::Text("%s neuron %d", layerName, hoverIndex);
+        ImGui::Text("Bias: %.4f", hoverBias);
+        if (hasProbe) {
+            if (hoverLayer == 0) {
+                ImGui::Text("Probe input: (x=%.3f, y=%.3f)", probeX, probeY);
+            } else if (hoverLayer == 3 && hoverIndex < ToyNet::OutputDim) {
+                ImGui::Text("Probe probs: p0=%.3f, p1=%.3f", hoverP0, hoverP1);
+            } else {
+                ImGui::Text("Activation (probe): %.4f", hoverActivation);
+            }
+        }
+        ImGui::EndTooltip();
+    }
+
+    ImGui::Separator();
+    ImGui::Text("Layers: Input (2) -> Hidden1 (4 ReLU) -> Hidden2 (8 ReLU) -> Output (2)");
+    ImGui::Text("Legend:");
+    ImGui::BulletText("Line color = sign of weight, thickness = |weight|");
+    ImGui::BulletText("Halo = large bias magnitude");
+    ImGui::BulletText("Node color (with probe) = activation for probe point");
 }
 
 } // namespace
@@ -182,6 +283,11 @@ void drawControlPanel(UiState& ui,
     ImGui::SliderFloat("Point Size", &ui.pointSize, 2.0f, 12.0f);
 
     ImGui::Separator();
+    ImGui::Checkbox("Activation Probe Enabled", &ui.probeEnabled);
+    ImGui::DragFloat("Probe X", &ui.probeX, 0.01f, -1.5f, 1.5f, "%.2f");
+    ImGui::DragFloat("Probe Y", &ui.probeY, 0.01f, -1.5f, 1.5f, "%.2f");
+
+    ImGui::Separator();
     ImGui::SliderFloat("Learning Rate", &trainer.learningRate, 0.0001f, 1.0f, "%.5f");
     ImGui::SliderInt("Batch Size", &trainer.batchSize, 1, ToyNet::MaxBatch);
 
@@ -211,7 +317,7 @@ void drawControlPanel(UiState& ui,
     ImGui::SetNextWindowSize(diagramSize, ImGuiCond_Once);
 
     ImGui::Begin("Network Diagram");
-    drawNetworkDiagram(trainer.net);
+    drawNetworkDiagram(trainer.net, ui.probeEnabled, ui.probeX, ui.probeY);
     ImGui::End();
 
     // Loss plot window.

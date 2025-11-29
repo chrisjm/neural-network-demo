@@ -42,5 +42,10 @@ struct ToyNet {
 
     float trainBatch(const std::vector<DataPoint>& batch, float& outAccuracy);
 
+    void forwardSingleWithActivations(float x, float y,
+                                      float& p0, float& p1,
+                                      float* outA1,
+                                      float* outA2) const;
+
     void forwardSingle(float x, float y, float& p0, float& p1) const;
 };

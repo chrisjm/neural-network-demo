@@ -9,6 +9,9 @@ struct UiState {
     int   numPoints;
     float spread;
     float pointSize;
+    bool  probeEnabled;
+    float probeX;
+    float probeY;
 };
 
 void drawControlPanel(UiState& ui,
