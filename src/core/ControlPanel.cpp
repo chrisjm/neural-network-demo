@@ -85,6 +85,56 @@ void drawNetworkDiagram(const ToyNet& net,
         hasProbe = true;
     }
 
+    ImVec2 mousePos = ImGui::GetIO().MousePos;
+    bool   windowHovered = ImGui::IsWindowHovered();
+
+    // Edge hover state (weights)
+    bool  hasEdgeHover         = false;
+    int   edgeFromLayer        = -1;
+    int   edgeFromIndex        = -1;
+    int   edgeToLayer          = -1;
+    int   edgeToIndex          = -1;
+    float edgeWeight           = 0.0f;
+    float edgeSrcActivation    = 0.0f;
+    float edgeContribution     = 0.0f;
+    float bestEdgeDist2        = 0.0f;
+    const float edgeHoverPixel = 6.0f;
+    const float edgeHoverR2    = edgeHoverPixel * edgeHoverPixel;
+
+    auto considerEdgeHover = [&](ImVec2 a,
+                                 ImVec2 b,
+                                 int fromLayer,
+                                 int fromIndex,
+                                 int toLayer,
+                                 int toIndex,
+                                 float weight,
+                                 float srcActivation) {
+        if (!windowHovered) return;
+
+        ImVec2 ab(b.x - a.x, b.y - a.y);
+        ImVec2 am(mousePos.x - a.x, mousePos.y - a.y);
+        float ab2 = ab.x * ab.x + ab.y * ab.y;
+        if (ab2 <= 1e-4f) return;
+        float t = (ab.x * am.x + ab.y * am.y) / ab2;
+        if (t < 0.0f) t = 0.0f;
+        else if (t > 1.0f) t = 1.0f;
+        ImVec2 closest(a.x + t * ab.x, a.y + t * ab.y);
+        float dx = mousePos.x - closest.x;
+        float dy = mousePos.y - closest.y;
+        float dist2 = dx * dx + dy * dy;
+        if (dist2 <= edgeHoverR2 && (!hasEdgeHover || dist2 < bestEdgeDist2)) {
+            hasEdgeHover      = true;
+            bestEdgeDist2     = dist2;
+            edgeFromLayer     = fromLayer;
+            edgeFromIndex     = fromIndex;
+            edgeToLayer       = toLayer;
+            edgeToIndex       = toIndex;
+            edgeWeight        = weight;
+            edgeSrcActivation = srcActivation;
+            edgeContribution  = hasProbe ? (srcActivation * weight) : 0.0f;
+        }
+    };
+
     // Connections: Input -> Hidden1 (W1)
     for (int j = 0; j < ToyNet::Hidden1; ++j) {
         ImVec2 toPos = nodePos(1, j);
@@ -93,6 +143,12 @@ void drawNetworkDiagram(const ToyNet& net,
             float w = net.W1[j * ToyNet::InputDim + i];
             float thickness = weightThickness(w);
             drawList->AddLine(fromPos, toPos, weightColor(w), thickness);
+
+            float srcAct = 0.0f;
+            if (hasProbe) {
+                srcAct = (i == 0) ? probeX : probeY;
+            }
+            considerEdgeHover(fromPos, toPos, 0, i, 1, j, w, srcAct);
         }
     }
 
@@ -104,6 +160,12 @@ void drawNetworkDiagram(const ToyNet& net,
             float w = net.W2[j * ToyNet::Hidden1 + i];
             float thickness = weightThickness(w);
             drawList->AddLine(fromPos, toPos, weightColor(w), thickness);
+
+            float srcAct = 0.0f;
+            if (hasProbe) {
+                srcAct = probeA1[i];
+            }
+            considerEdgeHover(fromPos, toPos, 1, i, 2, j, w, srcAct);
         }
     }
 
@@ -115,6 +177,12 @@ void drawNetworkDiagram(const ToyNet& net,
             float w = net.W3[k * ToyNet::Hidden2 + j];
             float thickness = weightThickness(w);
             drawList->AddLine(fromPos, toPos, weightColor(w), thickness);
+
+            float srcAct = 0.0f;
+            if (hasProbe) {
+                srcAct = probeA2[j];
+            }
+            considerEdgeHover(fromPos, toPos, 2, j, 3, k, w, srcAct);
         }
     }
 
@@ -122,8 +190,6 @@ void drawNetworkDiagram(const ToyNet& net,
     const float nodeRadius = 4.0f;
     ImU32 baseNodeColor = IM_COL32(220, 220, 220, 255);
 
-    ImVec2 mousePos = ImGui::GetIO().MousePos;
-    bool   windowHovered = ImGui::IsWindowHovered();
     bool   hasHover = false;
     int    hoverLayer = -1;
     int    hoverIndex = -1;
@@ -236,6 +302,38 @@ void drawNetworkDiagram(const ToyNet& net,
             }
         }
         ImGui::EndTooltip();
+    } else if (hasEdgeHover) {
+        const char* fromLayerName = "";
+        const char* toLayerName   = "";
+
+        if (edgeFromLayer == 0) fromLayerName = "Input";
+        else if (edgeFromLayer == 1) fromLayerName = "Hidden 1";
+        else if (edgeFromLayer == 2) fromLayerName = "Hidden 2";
+
+        if (edgeToLayer == 1) toLayerName = "Hidden 1";
+        else if (edgeToLayer == 2) toLayerName = "Hidden 2";
+        else if (edgeToLayer == 3) toLayerName = "Output";
+
+        ImGui::BeginTooltip();
+
+        if (edgeFromLayer == 0) {
+            const char* comp = (edgeFromIndex == 0) ? "x" : "y";
+            ImGui::Text("Weight: Input %s -> %s neuron %d", comp, toLayerName, edgeToIndex);
+        } else if (edgeToLayer == 3) {
+            ImGui::Text("Weight: %s neuron %d -> Output neuron %d",
+                        fromLayerName, edgeFromIndex, edgeToIndex);
+        } else {
+            ImGui::Text("Weight: %s neuron %d -> %s neuron %d",
+                        fromLayerName, edgeFromIndex, toLayerName, edgeToIndex);
+        }
+
+        ImGui::Text("Value: %.4f", edgeWeight);
+        if (hasProbe) {
+            ImGui::Text("Source activation (probe): %.4f", edgeSrcActivation);
+            ImGui::Text("Contribution (probe): %.4f", edgeContribution);
+        }
+
+        ImGui::EndTooltip();
     }
 
     ImGui::Separator();
@@ -286,6 +384,17 @@ void drawControlPanel(UiState& ui,
     ImGui::Checkbox("Activation Probe Enabled", &ui.probeEnabled);
     ImGui::DragFloat("Probe X", &ui.probeX, 0.01f, -1.5f, 1.5f, "%.2f");
     ImGui::DragFloat("Probe Y", &ui.probeY, 0.01f, -1.5f, 1.5f, "%.2f");
+
+    if (ui.hasSelectedPoint && ui.selectedPointIndex >= 0) {
+        float p0 = 0.0f;
+        float p1 = 0.0f;
+        trainer.net.forwardSingle(ui.probeX, ui.probeY, p0, p1);
+        int predicted = (p1 > p0) ? 1 : 0;
+
+        ImGui::Text("Selected sample: index %d, class %d", ui.selectedPointIndex, ui.selectedLabel);
+        ImGui::Text("Coords: (x=%.3f, y=%.3f)", ui.probeX, ui.probeY);
+        ImGui::Text("Prediction: class %d (p0=%.3f, p1=%.3f)", predicted, p0, p1);
+    }
 
     ImGui::Separator();
     ImGui::SliderFloat("Learning Rate", &trainer.learningRate, 0.0001f, 1.0f, "%.5f");

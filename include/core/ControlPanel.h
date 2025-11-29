@@ -14,6 +14,7 @@ struct UiState {
     float probeY;
     bool  hasSelectedPoint;
     int   selectedPointIndex;
+    int   selectedLabel;
 };
 
 void drawControlPanel(UiState& ui,

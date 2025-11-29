@@ -330,13 +330,14 @@ int App::run() {
     UiState ui;
     ui.datasetIndex       = static_cast<int>(currentDataset);
     ui.numPoints          = 1000;
-    ui.spread             = 0.5f;
-    ui.pointSize          = 8.0f;
-    ui.probeEnabled       = false;
+    ui.spread             = 0.25f;
+    ui.pointSize          = 6.0f;
+    ui.probeEnabled       = true;
     ui.probeX             = 0.0f;
     ui.probeY             = 0.0f;
     ui.hasSelectedPoint   = false;
     ui.selectedPointIndex = -1;
+    ui.selectedLabel      = -1;
 
     generateDataset(currentDataset, ui.numPoints, ui.spread, dataset);
     pointCloud.upload(dataset);
@@ -387,6 +388,7 @@ int App::run() {
 
             ui.hasSelectedPoint   = false;
             ui.selectedPointIndex = -1;
+            ui.selectedLabel      = -1;
 
             trainer.resetForNewDataset();
             fieldVis.setDirty();

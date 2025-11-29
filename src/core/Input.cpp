@@ -229,6 +229,7 @@ void handleProbeSelection(GLFWwindow* window,
                 ui.probeY             = dataset[bestIndex].y;
                 ui.hasSelectedPoint   = true;
                 ui.selectedPointIndex = bestIndex;
+                ui.selectedLabel      = dataset[bestIndex].label;
             }
         }
     }
