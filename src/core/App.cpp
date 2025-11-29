@@ -240,6 +240,14 @@ int App::run() {
     // Dataset of 2D points with class labels.
     std::vector<DataPoint> dataset;
 
+    enum class DatasetType {
+        TwoBlobs = 0,
+        ConcentricCircles,
+        TwoMoons,
+        XORQuads,
+        Spirals
+    };
+
     auto generateTwoBlobs = [](int numPoints, float spread, std::vector<DataPoint>& out) {
         out.clear();
         out.reserve(static_cast<size_t>(numPoints));
@@ -267,6 +275,146 @@ int App::run() {
             float x = cx + std::cos(angle) * radius;
             float y = cy + std::sin(angle) * radius;
             out.push_back({x, y, 1});
+        }
+    };
+
+    auto generateConcentricCircles = [](int numPoints, float noise, std::vector<DataPoint>& out) {
+        out.clear();
+        out.reserve(static_cast<size_t>(numPoints));
+
+        int half = numPoints / 2;
+        auto rand01 = []() {
+            return static_cast<float>(std::rand()) / static_cast<float>(RAND_MAX);
+        };
+
+        float innerR = 0.3f;
+        float outerR = 0.75f;
+        float noiseScale = noise;
+
+        for (int i = 0; i < half; ++i) {
+            float angle = rand01() * 2.0f * static_cast<float>(M_PI);
+            float r = innerR + noiseScale * (rand01() - 0.5f);
+            float x = r * std::cos(angle);
+            float y = r * std::sin(angle);
+            out.push_back({x, y, 0});
+        }
+
+        for (int i = half; i < numPoints; ++i) {
+            float angle = rand01() * 2.0f * static_cast<float>(M_PI);
+            float r = outerR + noiseScale * (rand01() - 0.5f);
+            float x = r * std::cos(angle);
+            float y = r * std::sin(angle);
+            out.push_back({x, y, 1});
+        }
+    };
+
+    auto generateTwoMoons = [](int numPoints, float noise, std::vector<DataPoint>& out) {
+        out.clear();
+        out.reserve(static_cast<size_t>(numPoints));
+
+        int half = numPoints / 2;
+        auto rand01 = []() {
+            return static_cast<float>(std::rand()) / static_cast<float>(RAND_MAX);
+        };
+
+        float radius = 0.8f;
+        float offsetX = 0.5f;
+        float offsetY = 0.25f;
+        float noiseScale = noise;
+
+        for (int i = 0; i < half; ++i) {
+            float t = rand01() * static_cast<float>(M_PI);
+            float x = std::cos(t) * radius - offsetX;
+            float y = std::sin(t) * radius * 0.5f;
+            x += noiseScale * (rand01() - 0.5f);
+            y += noiseScale * (rand01() - 0.5f);
+            out.push_back({x, y, 0});
+        }
+
+        for (int i = half; i < numPoints; ++i) {
+            float t = rand01() * static_cast<float>(M_PI);
+            float x = std::cos(t) * radius + offsetX;
+            float y = -std::sin(t) * radius * 0.5f + offsetY;
+            x += noiseScale * (rand01() - 0.5f);
+            y += noiseScale * (rand01() - 0.5f);
+            out.push_back({x, y, 1});
+        }
+    };
+
+    auto generateXORQuads = [](int numPoints, float spread, std::vector<DataPoint>& out) {
+        out.clear();
+        out.reserve(static_cast<size_t>(numPoints));
+
+        auto rand01 = []() {
+            return static_cast<float>(std::rand()) / static_cast<float>(RAND_MAX);
+        };
+
+        int quarter = numPoints / 4;
+        float r = spread;
+
+        auto sampleAround = [&](float cx, float cy, int label, int count) {
+            for (int i = 0; i < count; ++i) {
+                float angle = rand01() * 2.0f * static_cast<float>(M_PI);
+                float rad = r * rand01();
+                float x = cx + std::cos(angle) * rad;
+                float y = cy + std::sin(angle) * rad;
+                out.push_back({x, y, label});
+            }
+        };
+
+        sampleAround(-0.5f, -0.5f, 0, quarter);
+        sampleAround( 0.5f,  0.5f, 0, quarter);
+        sampleAround(-0.5f,  0.5f, 1, quarter);
+        sampleAround( 0.5f, -0.5f, 1, numPoints - 3 * quarter);
+    };
+
+    auto generateSpirals = [](int numPoints, float noise, std::vector<DataPoint>& out) {
+        out.clear();
+        out.reserve(static_cast<size_t>(numPoints));
+
+        int half = numPoints / 2;
+        auto rand01 = []() {
+            return static_cast<float>(std::rand()) / static_cast<float>(RAND_MAX);
+        };
+
+        float maxT = 3.5f * static_cast<float>(M_PI);
+        float a = 0.1f;
+        float b = 0.05f;
+        float noiseScale = noise;
+
+        auto sampleSpiral = [&](int label, float angleOffset, int count) {
+            for (int i = 0; i < count; ++i) {
+                float t = rand01() * maxT;
+                float r = a + b * t;
+                float x = r * std::cos(t + angleOffset);
+                float y = r * std::sin(t + angleOffset);
+                x += noiseScale * (rand01() - 0.5f);
+                y += noiseScale * (rand01() - 0.5f);
+                out.push_back({x, y, label});
+            }
+        };
+
+        sampleSpiral(0, 0.0f, half);
+        sampleSpiral(1, static_cast<float>(M_PI), numPoints - half);
+    };
+
+    auto generateDataset = [&](DatasetType type, int numPoints, float spread, std::vector<DataPoint>& out) {
+        switch (type) {
+            case DatasetType::TwoBlobs:
+                generateTwoBlobs(numPoints, spread, out);
+                break;
+            case DatasetType::ConcentricCircles:
+                generateConcentricCircles(numPoints, spread, out);
+                break;
+            case DatasetType::TwoMoons:
+                generateTwoMoons(numPoints, spread, out);
+                break;
+            case DatasetType::XORQuads:
+                generateXORQuads(numPoints, spread, out);
+                break;
+            case DatasetType::Spirals:
+                generateSpirals(numPoints, spread, out);
+                break;
         }
     };
 
@@ -305,7 +453,10 @@ int App::run() {
     float uiSpread    = 0.25f;
     float uiPointSize = 6.0f;
 
-    generateTwoBlobs(uiNumPoints, uiSpread, dataset);
+    DatasetType currentDataset = DatasetType::TwoBlobs;
+    int uiDatasetIndex = 0;
+
+    generateDataset(currentDataset, uiNumPoints, uiSpread, dataset);
     uploadDatasetToGPU(dataset);
 
     std::vector<float> gridVertices;
@@ -489,6 +640,19 @@ int App::run() {
         ImGui::Begin("Neural Net Demo");
 
         bool regenerate = false;
+
+        static const char* datasetNames[] = {
+            "Two Blobs",
+            "Concentric Circles",
+            "Two Moons",
+            "XOR Quadrants",
+            "Spirals"
+        };
+        if (ImGui::Combo("Dataset", &uiDatasetIndex, datasetNames, IM_ARRAYSIZE(datasetNames))) {
+            currentDataset = static_cast<DatasetType>(uiDatasetIndex);
+            regenerate = true;
+        }
+
         regenerate |= ImGui::SliderInt("Points", &uiNumPoints, 100, 5000);
         regenerate |= ImGui::SliderFloat("Spread", &uiSpread, 0.01f, 0.5f);
         if (ImGui::Button("Regenerate Data")) {
@@ -498,8 +662,15 @@ int App::run() {
         if (regenerate) {
             if (uiNumPoints < 10) uiNumPoints = 10;
             if (uiNumPoints > maxPoints) uiNumPoints = maxPoints;
-            generateTwoBlobs(uiNumPoints, uiSpread, dataset);
+            generateDataset(currentDataset, uiNumPoints, uiSpread, dataset);
             uploadDatasetToGPU(dataset);
+
+            net.resetParameters();
+            uiStepCount    = 0;
+            uiLastLoss     = 0.0f;
+            uiLastAccuracy = 0.0f;
+            uiAutoTrain    = false;
+            fieldDirty     = true;
         }
 
         ImGui::Separator();
