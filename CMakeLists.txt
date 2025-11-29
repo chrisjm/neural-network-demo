@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.10)
-project(HelloTriangle)
+project(NeuralNetDemo)
 
 set(CMAKE_CXX_STANDARD 17)
 
@@ -21,7 +21,7 @@ include_directories(
 
 add_definitions(-DIMGUI_IMPL_OPENGL_LOADER_GLAD)
 
-add_executable(HelloTriangle
+add_executable(NeuralNetDemo
     main.cpp
     src/core/App.cpp
     src/core/DatasetGenerator.cpp
@@ -47,4 +47,4 @@ add_executable(HelloTriangle
 )
 
 # Link the libraries
-target_link_libraries(HelloTriangle glfw OpenGL::GL)
+target_link_libraries(NeuralNetDemo glfw OpenGL::GL)

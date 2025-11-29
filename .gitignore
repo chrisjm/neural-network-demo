@@ -13,7 +13,7 @@ Makefile
 *.dll
 *.so
 *.dylib
-HelloTriangle
+NeuralNetDemo
 
 # IDE / editor files
 .idea/
