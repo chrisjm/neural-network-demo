@@ -18,6 +18,8 @@ public:
     bool init();
     int run();
 
+    GLFWwindow* getWindow() const { return m_window; }
+
 private:
     void renderLoop(GLFWwindow* window,
                     ShaderProgram& pointShader,
