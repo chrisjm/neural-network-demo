@@ -6,8 +6,8 @@
 
 struct ToyNet {
     static constexpr int InputDim  = 2;
-    static constexpr int Hidden1   = 16;
-    static constexpr int Hidden2   = 16;
+    static constexpr int Hidden1   = 4;
+    static constexpr int Hidden2   = 4;
     static constexpr int OutputDim = 2;
     static constexpr int MaxBatch  = 256;
 
