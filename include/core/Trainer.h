@@ -18,6 +18,11 @@ struct Trainer {
     float lastLoss;
     float lastAccuracy;
 
+    static constexpr int HistorySize = 512;
+    float lossHistory[HistorySize];
+    float accuracyHistory[HistorySize];
+    int   historyCount;
+
     Trainer();
 
     void resetForNewDataset();

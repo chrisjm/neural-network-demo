@@ -174,4 +174,32 @@ void drawControlPanel(UiState& ui,
     ImGui::Begin("Network Diagram");
     drawNetworkDiagram(trainer.net);
     ImGui::End();
+
+    // Loss plot window.
+    ImVec2 lossSize(360.0f, 160.0f);
+    ImVec2 lossPos(controlsPos.x, io.DisplaySize.y - lossSize.y - 20.0f);
+    ImGui::SetNextWindowPos(lossPos, ImGuiCond_Once);
+    ImGui::SetNextWindowSize(lossSize, ImGuiCond_Once);
+
+    ImGui::Begin("Loss Plot");
+    if (trainer.historyCount > 0) {
+        ImGui::PlotLines("Loss", trainer.lossHistory, trainer.historyCount, 0, nullptr, 0.0f, trainer.lossHistory[0] + 1.0f, ImVec2(-1.0f, 100.0f));
+    } else {
+        ImGui::Text("No data yet");
+    }
+    ImGui::End();
+
+    // Accuracy plot window.
+    ImVec2 accSize(360.0f, 160.0f);
+    ImVec2 accPos(controlsPos.x - accSize.x - 10.0f, io.DisplaySize.y - accSize.y - 20.0f);
+    ImGui::SetNextWindowPos(accPos, ImGuiCond_Once);
+    ImGui::SetNextWindowSize(accSize, ImGuiCond_Once);
+
+    ImGui::Begin("Accuracy Plot");
+    if (trainer.historyCount > 0) {
+        ImGui::PlotLines("Accuracy", trainer.accuracyHistory, trainer.historyCount, 0, nullptr, 0.0f, 1.0f, ImVec2(-1.0f, 100.0f));
+    } else {
+        ImGui::Text("No data yet");
+    }
+    ImGui::End();
 }

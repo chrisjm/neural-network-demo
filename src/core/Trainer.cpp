@@ -9,9 +9,14 @@ Trainer::Trainer()
     , stepCount(0)
     , lastLoss(0.0f)
     , lastAccuracy(0.0f)
+    , historyCount(0)
     , m_dataCursor(0)
 {
     m_batch.reserve(ToyNet::MaxBatch);
+    for (int i = 0; i < HistorySize; ++i) {
+        lossHistory[i] = 0.0f;
+        accuracyHistory[i] = 0.0f;
+    }
     net.resetParameters();
 }
 
@@ -23,6 +28,12 @@ void Trainer::resetForNewDataset()
     lastAccuracy = 0.0f;
     autoTrain    = false;
     m_dataCursor = 0;
+
+    historyCount = 0;
+    for (int i = 0; i < HistorySize; ++i) {
+        lossHistory[i] = 0.0f;
+        accuracyHistory[i] = 0.0f;
+    }
 }
 
 void Trainer::makeBatch(const std::vector<DataPoint>& dataset)
@@ -60,6 +71,19 @@ void Trainer::stepOnce(const std::vector<DataPoint>& dataset)
 
     lastLoss = net.trainBatch(m_batch, lastAccuracy);
     ++stepCount;
+
+    if (historyCount < HistorySize) {
+        lossHistory[historyCount]     = lastLoss;
+        accuracyHistory[historyCount] = lastAccuracy;
+        ++historyCount;
+    } else {
+        for (int i = 1; i < HistorySize; ++i) {
+            lossHistory[i - 1]     = lossHistory[i];
+            accuracyHistory[i - 1] = accuracyHistory[i];
+        }
+        lossHistory[HistorySize - 1]     = lastLoss;
+        accuracyHistory[HistorySize - 1] = lastAccuracy;
+    }
 }
 
 bool Trainer::stepAuto(const std::vector<DataPoint>& dataset)

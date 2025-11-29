@@ -221,7 +221,7 @@ bool App::init() {
 
     // Create a Window
     std::cout << "[Init] Creating window 800x600..." << std::endl;
-    m_window = glfwCreateWindow(800, 600, "My First Shader", NULL, NULL);
+    m_window = glfwCreateWindow(1024, 768, "Neural Net Demo", NULL, NULL);
     if (m_window == NULL) {
         std::cerr << "[Init] Failed to create GLFW window" << std::endl;
         glfwTerminate();
