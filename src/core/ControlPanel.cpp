@@ -117,7 +117,15 @@ void drawControlPanel(UiState& ui,
     regenerateRequested = false;
     stepTrainRequested = false;
 
-    ImGui::Begin("Neural Net Demo");
+    ImGuiIO& io = ImGui::GetIO();
+
+    // Main controls window on the right side.
+    ImVec2 controlsSize(360.0f, 260.0f);
+    ImVec2 controlsPos(io.DisplaySize.x - controlsSize.x - 20.0f, 20.0f);
+    ImGui::SetNextWindowPos(controlsPos, ImGuiCond_Once);
+    ImGui::SetNextWindowSize(controlsSize, ImGuiCond_Once);
+
+    ImGui::Begin("Neural Net Controls");
 
     const char* const* datasetNames = getDatasetTypeNames();
 
@@ -155,7 +163,15 @@ void drawControlPanel(UiState& ui,
 
     ImGui::Text("Current points: %d", static_cast<int>(currentPointCount));
 
-    drawNetworkDiagram(trainer.net);
+    ImGui::End();
 
+    // Separate window for the network diagram, positioned below the controls by default.
+    ImVec2 diagramSize(360.0f, 260.0f);
+    ImVec2 diagramPos(controlsPos.x, controlsPos.y + controlsSize.y + 10.0f);
+    ImGui::SetNextWindowPos(diagramPos, ImGuiCond_Once);
+    ImGui::SetNextWindowSize(diagramSize, ImGuiCond_Once);
+
+    ImGui::Begin("Network Diagram");
+    drawNetworkDiagram(trainer.net);
     ImGui::End();
 }
