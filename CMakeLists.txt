@@ -11,29 +11,32 @@ find_package(OpenGL REQUIRED)
 # Here we assume you have the glad library available.
 
 include_directories(
-    glad/include
-    imgui
-    imgui/backends
+    ${CMAKE_SOURCE_DIR}/include
+    ${CMAKE_SOURCE_DIR}/include/core
+    ${CMAKE_SOURCE_DIR}/include/render
+    ${CMAKE_SOURCE_DIR}/extern/glad/include
+    ${CMAKE_SOURCE_DIR}/extern/imgui
+    ${CMAKE_SOURCE_DIR}/extern/imgui/backends
 )
 
 add_definitions(-DIMGUI_IMPL_OPENGL_LOADER_GLAD)
 
 add_executable(HelloTriangle
     main.cpp
-    ShaderProgram.cpp
-    TriangleMesh.cpp
-    App.cpp
-    GLUtils.cpp
-    Input.cpp
-    GeometryUtils.cpp
-    glad/src/glad.c
-    imgui/imgui.cpp
-    imgui/imgui_draw.cpp
-    imgui/imgui_widgets.cpp
-    imgui/imgui_tables.cpp
-    imgui/imgui_demo.cpp
-    imgui/backends/imgui_impl_glfw.cpp
-    imgui/backends/imgui_impl_opengl3.cpp
+    src/core/App.cpp
+    src/core/GeometryUtils.cpp
+    src/core/Input.cpp
+    src/render/GLUtils.cpp
+    src/render/ShaderProgram.cpp
+    src/render/TriangleMesh.cpp
+    extern/glad/src/glad.c
+    extern/imgui/imgui.cpp
+    extern/imgui/imgui_draw.cpp
+    extern/imgui/imgui_widgets.cpp
+    extern/imgui/imgui_tables.cpp
+    extern/imgui/imgui_demo.cpp
+    extern/imgui/backends/imgui_impl_glfw.cpp
+    extern/imgui/backends/imgui_impl_opengl3.cpp
 )
 
 # Link the libraries
