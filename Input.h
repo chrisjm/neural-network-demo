@@ -3,6 +3,20 @@
 struct GLFWwindow;
 struct Object2D;
 
+struct MouseDebugState {
+    bool  hasClick;
+    double mouseX;
+    double mouseY;
+    float xNdc;
+    float yNdc;
+    float triLocalX;
+    float triLocalY;
+    float squareLocalX;
+    float squareLocalY;
+    bool  hitTriangle;
+    bool  hitSquare;
+};
+
 // Handle keyboard input for all objects, updating the currently selected
 // object index and applying movement/scale/rotation/color changes.
 void handleKeyboardInput(GLFWwindow* window,
@@ -19,4 +33,5 @@ void handleMouseInput(GLFWwindow* window,
                       int objectCount,
                       int& selectedObject,
                       bool& leftMousePressedLastFrame,
-                      const float* triangleVertices);
+                      const float* triangleVertices,
+                      MouseDebugState* debugState);

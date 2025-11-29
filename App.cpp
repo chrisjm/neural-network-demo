@@ -241,6 +241,10 @@ int App::run() {
     std::cout << "[State] Square   initial rotation = " << objects[1].rotation << " radians" << std::endl;
     std::cout << "[State] Square   initial color    = (" << objects[1].color[0] << ", " << objects[1].color[1] << ", " << objects[1].color[2] << ")" << std::endl;
 
+    Object2D initialObjects[2] = { objects[0], objects[1] };
+
+    MouseDebugState mouseDebug{};
+
     // Selection state: 0 = triangle, 1 = square.
     int selectedObject = 0;
     bool leftMousePressedLastFrame = false;
@@ -259,15 +263,62 @@ int App::run() {
         // can evolve interactions (e.g., drag-and-drop) independently of
         // the rendering and app structure.
         handleKeyboardInput(window, objects, 2, selectedObject, tabPressedLastFrame);
-        handleMouseInput(window, objects, 2, selectedObject, leftMousePressedLastFrame, vertices);
+        handleMouseInput(window, objects, 2, selectedObject, leftMousePressedLastFrame, vertices, &mouseDebug);
 
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
 
-        // Debug window
+        // Debug window with per-object state and controls.
         ImGui::Begin("Debug");
-        // show object state, mouse coords, selectedObject, etc.
+
+        const char* objectNames[2] = { "Triangle", "Square" };
+        ImGui::Text("Selected: %s (%d)", objectNames[selectedObject], selectedObject);
+
+        // Allow changing the selected object from the UI.
+        if (ImGui::RadioButton("Triangle", selectedObject == 0)) {
+            selectedObject = 0;
+        }
+        ImGui::SameLine();
+        if (ImGui::RadioButton("Square", selectedObject == 1)) {
+            selectedObject = 1;
+        }
+
+        ImGui::Separator();
+
+        for (int i = 0; i < 2; ++i) {
+            Object2D& obj = objects[i];
+            ImGui::PushID(i); // ensure widget IDs under this scope are unique per object
+            if (ImGui::TreeNode(objectNames[i])) {
+                if (ImGui::Button("Reset")) {
+                    obj = initialObjects[i];
+                }
+                ImGui::Separator();
+                ImGui::SliderFloat2("Offset", &obj.offsetX, -1.0f, 1.0f);
+                ImGui::SliderFloat("Scale", &obj.scale, 0.1f, 2.0f);
+                ImGui::SliderAngle("Rotation", &obj.rotation, -180.0f, 180.0f);
+                ImGui::ColorEdit3("Color", obj.color);
+                ImGui::TreePop();
+            }
+            ImGui::PopID();
+        }
+
+        ImGui::Separator();
+
+        ImGui::Text("Mouse debug");
+        if (!mouseDebug.hasClick) {
+            ImGui::Text("No click yet");
+        } else {
+            ImGui::Text("Window: (%.1f, %.1f)", mouseDebug.mouseX, mouseDebug.mouseY);
+            ImGui::Text("NDC:    (%.3f, %.3f)", mouseDebug.xNdc, mouseDebug.yNdc);
+            ImGui::Text("Triangle local: (%.3f, %.3f) %s",
+                        mouseDebug.triLocalX, mouseDebug.triLocalY,
+                        mouseDebug.hitTriangle ? "[hit]" : "[miss]");
+            ImGui::Text("Square   local: (%.3f, %.3f) %s",
+                        mouseDebug.squareLocalX, mouseDebug.squareLocalY,
+                        mouseDebug.hitSquare ? "[hit]" : "[miss]");
+        }
+
         ImGui::End();
 
         // Render Command 1: Clear the screen

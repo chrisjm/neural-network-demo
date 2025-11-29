@@ -104,9 +104,14 @@ void handleMouseInput(GLFWwindow* window,
                       int objectCount,
                       int& selectedObject,
                       bool& leftMousePressedLastFrame,
-                      const float* triangleVertices) {
+                      const float* triangleVertices,
+                      MouseDebugState* debugState) {
     if (!window || !objects || objectCount <= 0 || !triangleVertices) {
         return;
+    }
+
+    if (debugState) {
+        debugState->hasClick = false;
     }
 
     int leftState = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT);
@@ -146,6 +151,20 @@ void handleMouseInput(GLFWwindow* window,
                          squareLocalX, squareLocalY);
 
             bool hitSquare = pointInUnitSquare(squareLocalX, squareLocalY);
+
+            if (debugState) {
+                debugState->hasClick      = true;
+                debugState->mouseX       = mouseX;
+                debugState->mouseY       = mouseY;
+                debugState->xNdc         = xNdc;
+                debugState->yNdc         = yNdc;
+                debugState->triLocalX    = triLocalX;
+                debugState->triLocalY    = triLocalY;
+                debugState->squareLocalX = squareLocalX;
+                debugState->squareLocalY = squareLocalY;
+                debugState->hitTriangle  = hitTriangle;
+                debugState->hitSquare    = hitSquare;
+            }
 
             if (hitTriangle && !hitSquare) {
                 selectedObject = 0;
