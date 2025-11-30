@@ -11,7 +11,7 @@ struct Trainer {
     float learningRate;
     int   batchSize;
     bool  autoTrain;
-    int   autoMaxSteps;
+    int   autoMaxEpochs;
     float autoTargetLoss;
 
     OptimizerType optimizerType;
@@ -22,7 +22,7 @@ struct Trainer {
 
     InitMode initMode;
 
-    int   stepCount;
+    int   epochCount;
     float lastLoss;
     float lastAccuracy;
 
@@ -35,9 +35,9 @@ struct Trainer {
 
     void resetForNewDataset();
 
-    void stepOnce(const std::vector<DataPoint>& dataset);
+    void trainOneEpoch(const std::vector<DataPoint>& dataset);
 
-    bool stepAuto(const std::vector<DataPoint>& dataset);
+    bool autoTrainEpochs(const std::vector<DataPoint>& dataset);
 
 private:
     std::vector<DataPoint> m_batch;

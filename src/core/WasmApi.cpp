@@ -39,7 +39,7 @@ void nn_set_auto_train(int enabled) {
 }
 
 void nn_step_train() {
-    g_wasmState.trainer.stepOnce(g_wasmState.dataset);
+    g_wasmState.trainer.trainOneEpoch(g_wasmState.dataset);
     g_wasmState.fieldVis.setDirty();
 }
 
@@ -52,7 +52,7 @@ float nn_get_last_accuracy() {
 }
 
 int nn_get_step_count() {
-    return g_wasmState.trainer.stepCount;
+    return g_wasmState.trainer.epochCount;
 }
 
 float nn_get_learning_rate() {

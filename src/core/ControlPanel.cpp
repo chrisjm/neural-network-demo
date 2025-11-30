@@ -97,18 +97,19 @@ static void drawTrainingSection(UiState& ui,
                                 std::size_t currentPointCount,
                                 bool& stepTrainRequested)
 {
-    if (ImGui::Button("Step Train")) {
+    if (ImGui::Button("Train Epoch")) {
         stepTrainRequested = true;
     }
     ImGui::SameLine();
     ImGui::Checkbox("Auto Train", &trainer.autoTrain);
 
-    ImGui::Text("Step: %d", trainer.stepCount);
+    ImGui::Text("Epoch: %d", trainer.epochCount);
     ImGui::Text("Loss: %.4f", trainer.lastLoss);
     ImGui::Text("Accuracy: %.3f", trainer.lastAccuracy);
 
     ImGui::Separator();
-    ImGui::SliderInt("Auto Max Steps", &trainer.autoMaxSteps, 1, 50000);
+    ImGui::SliderInt("Auto Max Epochs", &trainer.autoMaxEpochs, 1, 5000);
+    // TODO: Add an ImGui help tooltip explaining epochs vs internal step terminology.
     ImGui::SliderFloat("Auto Target Loss", &trainer.autoTargetLoss, 0.00001f, 1.0f, "%.5f");
     ImGui::Text("Current points: %d", static_cast<int>(currentPointCount));
 
@@ -144,7 +145,7 @@ static void drawLossPlotWindow(const Trainer& trainer,
 
     ImGui::Begin("Loss Plot");
     if (trainer.historyCount > 0 && !trainer.lossHistory.empty()) {
-        ImGui::Text("Loss vs Step");
+        ImGui::Text("Loss vs Epoch");
         ImGui::Separator();
         float maxLoss = trainer.lossHistory[0];
         for (float v : trainer.lossHistory) {
@@ -159,7 +160,7 @@ static void drawLossPlotWindow(const Trainer& trainer,
                          0.0f,
                          scaleMax,
                          ImVec2(-1.0f, 100.0f));
-        ImGui::Text("step: 0 -> %d", trainer.stepCount);
+        ImGui::Text("epoch: 0 -> %d", trainer.epochCount);
     } else {
         ImGui::Text("No data yet");
     }
@@ -180,7 +181,7 @@ static void drawTrainingOverlayWindow(Trainer& trainer,
     ImGui::SetNextWindowBgAlpha(0.8f);
 
     ImGui::Begin("Mini Training Status", nullptr, flags);
-    ImGui::Text("Step: %d", trainer.stepCount);
+    ImGui::Text("Epoch: %d", trainer.epochCount);
     ImGui::Text("Loss: %.4f", trainer.lastLoss);
     ImGui::Text("Accuracy: %.3f", trainer.lastAccuracy);
     ImGui::Checkbox("Auto Train", &trainer.autoTrain);
@@ -199,7 +200,7 @@ static void drawAccuracyPlotWindow(const Trainer& trainer,
 
     ImGui::Begin("Accuracy Plot");
     if (trainer.historyCount > 0 && !trainer.accuracyHistory.empty()) {
-        ImGui::Text("Accuracy vs Step");
+        ImGui::Text("Accuracy vs Epoch");
         ImGui::Separator();
         ImGui::PlotLines("##AccuracySeries",
                          trainer.accuracyHistory.data(),
@@ -209,7 +210,7 @@ static void drawAccuracyPlotWindow(const Trainer& trainer,
                          0.0f,
                          1.0f,
                          ImVec2(-1.0f, 100.0f));
-        ImGui::Text("step: 0 -> %d", trainer.stepCount);
+        ImGui::Text("epoch: 0 -> %d", trainer.epochCount);
     } else {
         ImGui::Text("No data yet");
     }

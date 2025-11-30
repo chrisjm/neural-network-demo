@@ -4,7 +4,7 @@ Trainer::Trainer()
     : learningRate(0.1f)
     , batchSize(64)
     , autoTrain(false)
-    , autoMaxSteps(2000)
+    , autoMaxEpochs(2500)
     , autoTargetLoss(0.01f)
     , optimizerType(OptimizerType::SGD)
     , momentum(0.9f)
@@ -12,7 +12,7 @@ Trainer::Trainer()
     , adamBeta2(0.999f)
     , adamEps(1e-8f)
     , initMode(InitMode::HeUniform)
-    , stepCount(0)
+    , epochCount(0)
     , lastLoss(0.0f)
     , lastAccuracy(0.0f)
     , historyCount(0)
@@ -31,7 +31,7 @@ void Trainer::resetForNewDataset()
 {
     net.setInitMode(initMode);
     net.resetParameters();
-    stepCount    = 0;
+    epochCount   = 0;
     lastLoss     = 0.0f;
     lastAccuracy = 0.0f;
     autoTrain    = false;
@@ -65,7 +65,7 @@ void Trainer::makeBatch(const std::vector<DataPoint>& dataset)
     }
 }
 
-void Trainer::stepOnce(const std::vector<DataPoint>& dataset)
+void Trainer::trainOneEpoch(const std::vector<DataPoint>& dataset)
 {
     if (dataset.empty()) {
         return;
@@ -78,22 +78,22 @@ void Trainer::stepOnce(const std::vector<DataPoint>& dataset)
     makeBatch(dataset);
 
     lastLoss = net.trainBatch(m_batch, lastAccuracy);
-    ++stepCount;
+    ++epochCount;
 
     lossHistory.push_back(lastLoss);
     accuracyHistory.push_back(lastAccuracy);
     historyCount = static_cast<int>(lossHistory.size());
 }
 
-bool Trainer::stepAuto(const std::vector<DataPoint>& dataset)
+bool Trainer::autoTrainEpochs(const std::vector<DataPoint>& dataset)
 {
     if (!autoTrain) {
         return false;
     }
 
-    stepOnce(dataset);
+    trainOneEpoch(dataset);
 
-    if (stepCount >= autoMaxSteps || lastLoss <= autoTargetLoss) {
+    if (epochCount >= autoMaxEpochs || lastLoss <= autoTargetLoss) {
         autoTrain = false;
     }
 

@@ -101,12 +101,12 @@ void updateAndRenderFrame(FrameContext& ctx) {
     }
 
     if (stepTrainRequested) {
-        ctx.trainer.stepOnce(ctx.dataset);
+        ctx.trainer.trainOneEpoch(ctx.dataset);
         ctx.fieldVis.setDirty();
     }
 
     if (ctx.trainer.autoTrain) {
-        if (ctx.trainer.stepAuto(ctx.dataset)) {
+        if (ctx.trainer.autoTrainEpochs(ctx.dataset)) {
             ctx.fieldVis.setDirty();
         }
     }
