@@ -289,7 +289,7 @@ The "Neural Net Controls" ImGui window lets you:
     - Its index, coordinates, and class label.
     - The predicted probabilities `p0` and `p1` and the predicted class.
 
--- **Training controls**
+--- **Training controls**
 
 - `Learning Rate` slider controls how big each weight update step is.
 - `Batch Size` slider controls how many samples are used per training step.
@@ -303,10 +303,11 @@ The "Neural Net Controls" ImGui window lets you:
   - `Adam Beta1` controls how quickly the first-moment (mean gradient) estimate forgets old information.
   - `Adam Beta2` controls how quickly the second-moment (squared-gradient) estimate forgets old information.
   - `Adam Eps` is a small constant added inside the square root to keep divisions numerically stable.
-- `Step Train` runs a single training step with the current optimizer.
+- `Train Epoch` runs a single training step (one minibatch) with the current optimizer.
 - `Auto Train` toggles continuous training.
-- `Step`, `Loss`, and `Accuracy` display the latest training stats.
-- `Auto Max Steps` and `Auto Target Loss` set stopping criteria for auto training.
+- `Epoch`, `Loss`, and `Accuracy` display the latest training stats ("epoch" here effectively counts training steps).
+- `Auto Max Epochs` sets an optional upper bound on auto training steps; `0` disables the epoch-based limit (default is 500).
+- `Stop on Target Loss` toggles an optional loss-based stopping rule, which uses `Auto Target Loss` as a threshold; a value of `0.0` disables loss-based stopping.
 - **Loss Plot** and **Accuracy Plot** windows track training history over time.
 
 ### Network diagram
@@ -322,7 +323,7 @@ The "Network Diagram" ImGui window shows a schematic of the MLP:
 - **Biases**
   - Nodes with larger |bias| show a halo around them.
 - **Activations**
-  - With the probe enabled, node color encodes its activation at that probe point.
+  - With the probe enabled, node color encodes its activation at that probe point, using a warm orange for strongly positive activations and a cool blue for strongly negative/suppressed activations.
   - Hovering nodes shows layer name, index, bias, and activation (or output probabilities).
 
 ---
