@@ -118,15 +118,17 @@ bool App::init() {
     // Initialize Dear ImGui after OpenGL/GLAD are ready
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
+#ifdef IMGUI_HAS_DOCK
+    ImGuiIO& io = ImGui::GetIO();
+    io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
+#endif
     ImGui::StyleColorsDark();
-
     ImGui_ImplGlfw_InitForOpenGL(m_window, true);
 #ifdef __EMSCRIPTEN__
     ImGui_ImplOpenGL3_Init("#version 300 es");
 #else
     ImGui_ImplOpenGL3_Init("#version 330");  // matches your GL version
 #endif
-
     return true;
 }
 

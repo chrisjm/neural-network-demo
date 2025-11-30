@@ -6,25 +6,10 @@
 
 #include "imgui.h"
 
-void drawControlPanel(UiState& ui,
-                      Trainer& trainer,
-                      std::size_t currentPointCount,
-                      bool& regenerateRequested,
-                      bool& stepTrainRequested)
+static void drawDatasetSection(UiState& ui,
+                               std::size_t currentPointCount,
+                               bool& regenerateRequested)
 {
-    regenerateRequested = false;
-    stepTrainRequested = false;
-
-    ImGuiIO& io = ImGui::GetIO();
-
-    // Main controls window on the right side.
-    ImVec2 controlsSize(360.0f, 260.0f);
-    ImVec2 controlsPos(io.DisplaySize.x - controlsSize.x - 20.0f, 20.0f);
-    ImGui::SetNextWindowPos(controlsPos, ImGuiCond_Once);
-    ImGui::SetNextWindowSize(controlsSize, ImGuiCond_Once);
-
-    ImGui::Begin("Neural Net Controls");
-
     const char* const* datasetNames = getDatasetTypeNames();
 
     if (ImGui::Combo("Dataset", &ui.datasetIndex, datasetNames, DatasetTypeCount)) {
@@ -36,7 +21,10 @@ void drawControlPanel(UiState& ui,
     if (ImGui::Button("Regenerate Data")) {
         regenerateRequested = true;
     }
+}
 
+static void drawProbeSection(UiState& ui, Trainer& trainer)
+{
     ImGui::Separator();
     ImGui::SliderFloat("Point Size", &ui.pointSize, 2.0f, 12.0f);
 
@@ -55,7 +43,10 @@ void drawControlPanel(UiState& ui,
         ImGui::Text("Coords: (x=%.3f, y=%.3f)", ui.probeX, ui.probeY);
         ImGui::Text("Prediction: class %d (p0=%.3f, p1=%.3f)", predicted, p0, p1);
     }
+}
 
+static void drawHyperparameterSection(Trainer& trainer)
+{
     ImGui::Separator();
     const char* initNames[] = { "Zero", "He Uniform", "He Normal" };
     int         initIdx     = static_cast<int>(trainer.initMode);
@@ -108,7 +99,12 @@ void drawControlPanel(UiState& ui,
         ImGui::SliderFloat("Adam Eps", &trainer.adamEps, 1e-8f, 1e-4f, "%.1e");
         ImGui::TextWrapped("Adam keeps moving averages of gradients (beta1) and their squares (beta2) for adaptive step sizes.");
     }
+}
 
+static void drawTrainingSection(Trainer& trainer,
+                                std::size_t currentPointCount,
+                                bool& stepTrainRequested)
+{
     if (ImGui::Button("Step Train")) {
         stepTrainRequested = true;
     }
@@ -125,9 +121,13 @@ void drawControlPanel(UiState& ui,
     ImGui::Text("Auto stops when step >= %d or loss <= %.5f", trainer.autoMaxSteps, trainer.autoTargetLoss);
 
     ImGui::Text("Current points: %d", static_cast<int>(currentPointCount));
+}
 
-    ImGui::End();
-
+static void drawNetworkDiagramWindow(const UiState& ui,
+                                     Trainer& trainer,
+                                     const ImVec2& controlsPos,
+                                     const ImVec2& controlsSize)
+{
     // Separate window for the network diagram, positioned below the controls by default.
     ImVec2 diagramSize(360.0f, 260.0f);
     ImVec2 diagramPos(controlsPos.x, controlsPos.y + controlsSize.y + 10.0f);
@@ -138,7 +138,12 @@ void drawControlPanel(UiState& ui,
     static NetworkVisualizer visualizer;
     visualizer.draw(trainer.net, ui.probeEnabled, ui.probeX, ui.probeY);
     ImGui::End();
+}
 
+static void drawLossPlotWindow(const Trainer& trainer,
+                               const ImVec2& controlsPos,
+                               const ImGuiIO& io)
+{
     // Loss plot window.
     ImVec2 lossSize(360.0f, 160.0f);
     ImVec2 lossPos(controlsPos.x, io.DisplaySize.y - lossSize.y - 20.0f);
@@ -167,7 +172,12 @@ void drawControlPanel(UiState& ui,
         ImGui::Text("No data yet");
     }
     ImGui::End();
+}
 
+static void drawAccuracyPlotWindow(const Trainer& trainer,
+                                   const ImVec2& controlsPos,
+                                   const ImGuiIO& io)
+{
     // Accuracy plot window.
     ImVec2 accSize(360.0f, 160.0f);
     ImVec2 accPos(controlsPos.x - accSize.x - 10.0f, io.DisplaySize.y - accSize.y - 20.0f);
@@ -192,3 +202,41 @@ void drawControlPanel(UiState& ui,
     }
     ImGui::End();
 }
+
+void drawControlPanel(UiState& ui,
+                      Trainer& trainer,
+                      std::size_t currentPointCount,
+                      bool& regenerateRequested,
+                      bool& stepTrainRequested)
+{
+    regenerateRequested = false;
+    stepTrainRequested = false;
+
+    ImGuiIO& io = ImGui::GetIO();
+
+    // Main controls window on the right side.
+    ImVec2 controlsSize(360.0f, 260.0f);
+    ImVec2 controlsPos(io.DisplaySize.x - controlsSize.x - 20.0f, 20.0f);
+
+    ImGui::SetNextWindowPos(controlsPos, ImGuiCond_Once);
+    ImGui::SetNextWindowSize(controlsSize, ImGuiCond_Once);
+    ImGui::Begin("Data & Probe");
+    drawDatasetSection(ui, currentPointCount, regenerateRequested);
+    drawProbeSection(ui, trainer);
+    ImGui::End();
+
+    ImVec2 trainSize(360.0f, 260.0f);
+    ImVec2 trainPos(controlsPos.x,
+                    controlsPos.y + controlsSize.y + 10.0f + 260.0f + 10.0f);
+    ImGui::SetNextWindowPos(trainPos, ImGuiCond_Once);
+    ImGui::SetNextWindowSize(trainSize, ImGuiCond_Once);
+    ImGui::Begin("Training & Hyperparams");
+    drawHyperparameterSection(trainer);
+    drawTrainingSection(trainer, currentPointCount, stepTrainRequested);
+    ImGui::End();
+
+    drawNetworkDiagramWindow(ui, trainer, controlsPos, controlsSize);
+    drawLossPlotWindow(trainer, controlsPos, io);
+    drawAccuracyPlotWindow(trainer, controlsPos, io);
+}
+

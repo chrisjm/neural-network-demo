@@ -61,6 +61,9 @@ void updateAndRenderFrame(FrameContext& ctx) {
     ImGui_ImplOpenGL3_NewFrame();
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
+#ifdef IMGUI_HAS_DOCK
+    ImGui::DockSpaceOverViewport(ImGui::GetMainViewport());
+#endif
 
     ImGuiIO& io = ImGui::GetIO();
 
