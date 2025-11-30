@@ -36,40 +36,9 @@
 #include "Scene.h"
 
 #ifdef __EMSCRIPTEN__
-// Persistent render state for the WebAssembly build. This lives in App.cpp so
-// that App::run() can return after registering the main loop, while the data
-// stays alive for subsequent frames.
-struct WasmSceneState {
-    UiState ui;
-    std::vector<DataPoint> dataset;
-    PointCloud pointCloud;
-    GridAxes gridAxes;
-    FieldVisualizer fieldVis;
-    Trainer trainer;
+#include "WasmScene.h"
 
-    bool leftMousePressedLastFrame = false;
-    int  maxPoints                 = 0;
-
-    std::unique_ptr<ShaderProgram> pointShader;
-    std::unique_ptr<ShaderProgram> gridShader;
-    std::unique_ptr<ShaderProgram> fieldShader;
-
-    int pointSizeLocation     = -1;
-    int colorClass0Location   = -1;
-    int colorClass1Location   = -1;
-    int selectedIndexLocation = -1;
-
-    int gridColorLocation = -1;
-
-    int fieldW1Location = -1;
-    int fieldB1Location = -1;
-    int fieldW2Location = -1;
-    int fieldB2Location = -1;
-    int fieldW3Location = -1;
-    int fieldB3Location = -1;
-};
-
-static WasmSceneState g_wasmState;
+WasmSceneState g_wasmState;
 static App* g_wasmApp = nullptr;
 
 static void wasm_main_loop();

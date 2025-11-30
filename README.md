@@ -61,11 +61,15 @@ This project was meant to help me (and others) understand **both**:
   - `FieldVisualizer.h` – geometry and buffers for the decision field.
   - `NetworkVisualizer.h` – ImGui-based network diagram.
   - `Input.h` – keyboard and mouse handling, including probe selection.
+  - `Scene.h` – shared scene utilities (frame context, per-frame update, scene init).
+  - `WasmScene.h` – wasm-only scene state and declarations for the small C API.
   - `GeometryUtils.h`, `PlotGeometry.h`, `DataPoint.h` – helpers for geometry and data.
 - **`include/render/`**
   - `ShaderProgram.h` – simple RAII wrapper for an OpenGL shader program.
   - `GLUtils.h`, `Object2D.h`, `TriangleMesh.h` – OpenGL utilities and geometry.
 - **`src/core/`** – implementations of the core components above.
+  - `Scene.cpp` – implementation of shared scene helpers and per-frame update.
+  - `WasmApi.cpp` – wasm-only implementation of the exported C API used from JS.
 - **`src/render/`** – implementations of rendering utilities and `ShaderProgram`.
 - **`shaders/`** – GLSL shaders:
   - `point.vert`, `point.frag` – scatter plot point shader.
@@ -109,6 +113,115 @@ From the `build/` directory:
 ```
 
 The app loads shaders from the `shaders/` directory **relative to the current working directory**, so it is easiest to run it from the build directory created above.
+
+---
+
+## WebAssembly build & web integration
+
+The project also builds to WebAssembly using Emscripten. From the project root:
+
+```bash
+./build_all.sh
+```
+
+This will:
+
+- **Native**: configure and build to `build/` (desktop OpenGL app).
+- **WASM**: configure and build to `build-wasm/` via `emcmake`.
+
+The wasm build produces (in `build-wasm/`):
+
+- `NeuralNetDemo.js` – ES module loader (built with `-sMODULARIZE=1 -sEXPORT_ES6=1`).
+- `NeuralNetDemo.wasm` – WebAssembly binary.
+- `NeuralNetDemo.data` – preloaded shader assets.
+
+### Running the wasm build locally
+
+From the project root:
+
+```bash
+./serve_wasm.sh
+```
+
+This serves `build-wasm/` at <http://localhost:8000>. Open `NeuralNetDemo.html` in your browser to see the standalone demo.
+
+### Embedding the wasm module in your own app (e.g. SvelteKit)
+
+Because the wasm build is configured as a modular ES6 loader, you can import it from your own frontend instead of using the generated HTML shell.
+
+1. **Copy the build artifacts** somewhere your app can serve them from, for example:
+
+   - `static/nn/NeuralNetDemo.js`
+   - `static/nn/NeuralNetDemo.wasm`
+   - `static/nn/NeuralNetDemo.data`
+
+2. **Import and instantiate the module** from your app code. In Svelte/SvelteKit (e.g. in a component using `onMount`):
+
+```ts
+import { onMount } from "svelte";
+import createModule from "/nn/NeuralNetDemo.js"; // adjust path as needed
+
+let module: any;
+
+onMount(async () => {
+  const canvas = document.getElementById("demo-canvas") as HTMLCanvasElement;
+
+  module = await createModule({
+    canvas,
+    print: console.log,
+    printErr: console.error,
+  });
+});
+```
+
+The C++ side calls `emscripten_set_main_loop`, so once the module is instantiated, the render loop starts automatically.
+
+### Small C API exposed to JavaScript
+
+The wasm build exposes a tiny C API (via `extern "C"`), which Emscripten exports as functions on the module object:
+
+- `void nn_set_point_size(float size);`
+- `void nn_set_dataset(int datasetIndex, int numPoints, float spread);`
+- `void nn_set_auto_train(int enabled);`
+- `void nn_step_train();`
+
+These are compiled with `-sEXPORTED_FUNCTIONS=['_nn_set_point_size','_nn_set_dataset','_nn_set_auto_train','_nn_step_train']`, so from JS you can call:
+
+```ts
+// Example helpers after module = await createModule(...)
+
+function setPointSize(size: number) {
+  module._nn_set_point_size(size);
+}
+
+function setDataset(datasetIndex: number, numPoints: number, spread: number) {
+  module._nn_set_dataset(datasetIndex, numPoints, spread);
+}
+
+function setAutoTrain(enabled: boolean) {
+  module._nn_set_auto_train(enabled ? 1 : 0);
+}
+
+function stepTrainOnce() {
+  module._nn_step_train();
+}
+```
+
+`datasetIndex` maps directly to the `DatasetType` enum in `DatasetGenerator.h`:
+
+- `0` → `TwoBlobs`
+- `1` → `ConcentricCircles`
+- `2` → `TwoMoons`
+- `3` → `XORQuads`
+- `4` → `Spirals`
+
+With this minimal C API you can:
+
+- Drive point size and dataset parameters from your own UI (e.g. Svelte controls).
+- Toggle auto training from the host app.
+- Trigger single training steps on demand.
+
+The rendering loop, ImGui UI, and neural net visualization continue to run entirely inside the wasm module; your app just sends high-level control commands.
 
 ---
 

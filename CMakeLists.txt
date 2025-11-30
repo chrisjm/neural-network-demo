@@ -31,6 +31,7 @@ if (EMSCRIPTEN)
         main.cpp
         src/core/App.cpp
         src/core/Scene.cpp
+        src/core/WasmApi.cpp
         src/core/DatasetGenerator.cpp
         src/core/FieldVisualizer.cpp
         src/core/PlotGeometry.cpp
@@ -60,6 +61,11 @@ if (EMSCRIPTEN)
         "-sUSE_WEBGL2=1"
         "-sFULL_ES3=1"
         "--preload-file=${CMAKE_SOURCE_DIR}/shaders@/shaders"
+        "-sMODULARIZE=1"
+        "-sEXPORT_ES6=1"
+        "-sENVIRONMENT=web"
+        "-sNO_EXIT_RUNTIME=1"
+        "-sEXPORTED_FUNCTIONS=['_main','_nn_set_point_size','_nn_set_dataset','_nn_set_auto_train','_nn_step_train']"
     )
 else()
     add_definitions(-DIMGUI_IMPL_OPENGL_LOADER_GLAD)
