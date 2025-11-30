@@ -65,7 +65,7 @@ if (EMSCRIPTEN)
         "-sEXPORT_ES6=1"
         "-sENVIRONMENT=web"
         "-sNO_EXIT_RUNTIME=1"
-        "-sEXPORTED_FUNCTIONS=['_main','_nn_set_point_size','_nn_set_dataset','_nn_set_auto_train','_nn_step_train']"
+        "-sEXPORTED_FUNCTIONS=['_main','_nn_set_point_size','_nn_set_dataset','_nn_set_auto_train','_nn_step_train','_nn_get_last_loss','_nn_get_last_accuracy','_nn_get_step_count','_nn_get_learning_rate','_nn_get_batch_size','_nn_get_auto_train','_nn_get_dataset_index','_nn_get_num_points','_nn_get_spread','_nn_get_point_size']"
     )
 else()
     add_definitions(-DIMGUI_IMPL_OPENGL_LOADER_GLAD)

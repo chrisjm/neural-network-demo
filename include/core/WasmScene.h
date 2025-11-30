@@ -56,6 +56,20 @@ void nn_set_dataset(int datasetIndex, int numPoints, float spread);
 void nn_set_auto_train(int enabled);
 void nn_step_train();
 
+// Read-back API for JS to query current state.
+float nn_get_last_loss();
+float nn_get_last_accuracy();
+int   nn_get_step_count();
+
+float nn_get_learning_rate();
+int   nn_get_batch_size();
+int   nn_get_auto_train();
+
+int   nn_get_dataset_index();
+int   nn_get_num_points();
+float nn_get_spread();
+float nn_get_point_size();
+
 #ifdef __cplusplus
 } // extern "C"
 #endif

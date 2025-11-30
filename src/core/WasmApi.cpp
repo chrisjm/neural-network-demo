@@ -43,6 +43,46 @@ void nn_step_train() {
     g_wasmState.fieldVis.setDirty();
 }
 
+float nn_get_last_loss() {
+    return g_wasmState.trainer.lastLoss;
+}
+
+float nn_get_last_accuracy() {
+    return g_wasmState.trainer.lastAccuracy;
+}
+
+int nn_get_step_count() {
+    return g_wasmState.trainer.stepCount;
+}
+
+float nn_get_learning_rate() {
+    return g_wasmState.trainer.learningRate;
+}
+
+int nn_get_batch_size() {
+    return g_wasmState.trainer.batchSize;
+}
+
+int nn_get_auto_train() {
+    return g_wasmState.trainer.autoTrain ? 1 : 0;
+}
+
+int nn_get_dataset_index() {
+    return g_wasmState.ui.datasetIndex;
+}
+
+int nn_get_num_points() {
+    return g_wasmState.ui.numPoints;
+}
+
+float nn_get_spread() {
+    return g_wasmState.ui.spread;
+}
+
+float nn_get_point_size() {
+    return g_wasmState.ui.pointSize;
+}
+
 } // extern "C"
 
 #endif // __EMSCRIPTEN__

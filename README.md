@@ -185,7 +185,20 @@ The wasm build exposes a tiny C API (via `extern "C"`), which Emscripten exports
 - `void nn_set_auto_train(int enabled);`
 - `void nn_step_train();`
 
-These are compiled with `-sEXPORTED_FUNCTIONS=['_nn_set_point_size','_nn_set_dataset','_nn_set_auto_train','_nn_step_train']`, so from JS you can call:
+Read-back functions:
+
+- `float nn_get_last_loss();`
+- `float nn_get_last_accuracy();`
+- `int   nn_get_step_count();`
+- `float nn_get_learning_rate();`
+- `int   nn_get_batch_size();`
+- `int   nn_get_auto_train();`
+- `int   nn_get_dataset_index();`
+- `int   nn_get_num_points();`
+- `float nn_get_spread();`
+- `float nn_get_point_size();`
+
+These are compiled with `-sEXPORTED_FUNCTIONS=['_main', '_nn_set_point_size', '_nn_set_dataset', '_nn_set_auto_train', '_nn_step_train', '_nn_get_last_loss', '_nn_get_last_accuracy', '_nn_get_step_count', '_nn_get_learning_rate', '_nn_get_batch_size', '_nn_get_auto_train', '_nn_get_dataset_index', '_nn_get_num_points', '_nn_get_spread', '_nn_get_point_size']`, so from JS you can call:
 
 ```ts
 // Example helpers after module = await createModule(...)
@@ -204,6 +217,22 @@ function setAutoTrain(enabled: boolean) {
 
 function stepTrainOnce() {
   module._nn_step_train();
+}
+
+// Example of polling metrics from Svelte/SvelteKit
+function getMetrics() {
+  return {
+    loss: module._nn_get_last_loss(),
+    accuracy: module._nn_get_last_accuracy(),
+    step: module._nn_get_step_count(),
+    learningRate: module._nn_get_learning_rate(),
+    batchSize: module._nn_get_batch_size(),
+    autoTrain: !!module._nn_get_auto_train(),
+    datasetIndex: module._nn_get_dataset_index(),
+    numPoints: module._nn_get_num_points(),
+    spread: module._nn_get_spread(),
+    pointSize: module._nn_get_point_size(),
+  };
 }
 ```
 
