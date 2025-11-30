@@ -30,6 +30,7 @@ if (EMSCRIPTEN)
     add_executable(NeuralNetDemo
         main.cpp
         src/core/App.cpp
+        src/core/Scene.cpp
         src/core/DatasetGenerator.cpp
         src/core/FieldVisualizer.cpp
         src/core/PlotGeometry.cpp
@@ -66,6 +67,7 @@ else()
     add_executable(NeuralNetDemo
         main.cpp
         src/core/App.cpp
+        src/core/Scene.cpp
         src/core/DatasetGenerator.cpp
         src/core/FieldVisualizer.cpp
         src/core/PlotGeometry.cpp
