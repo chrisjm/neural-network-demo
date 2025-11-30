@@ -56,13 +56,10 @@ static void drawHyperparameterSection(Trainer& trainer)
         trainer.initMode = static_cast<InitMode>(initIdx);
         trainer.resetForNewDataset();
     }
-    ImGui::TextWrapped("Initialization affects the starting weights before training.");
 
     ImGui::Separator();
     ImGui::SliderFloat("Learning Rate", &trainer.learningRate, 0.0001f, 0.2f, "%.5f");
-    ImGui::TextWrapped("Learning rate controls how big each weight update step is.");
     ImGui::SliderInt("Batch Size", &trainer.batchSize, 1, ToyNet::MaxBatch);
-    ImGui::TextWrapped("Batch size is how many points are used per training step.");
 
     ImGui::Separator();
     const char* optimizerNames[] = { "SGD", "SGD + Momentum", "Adam" };
@@ -88,20 +85,30 @@ static void drawHyperparameterSection(Trainer& trainer)
 
         trainer.optimizerType = static_cast<OptimizerType>(optimizerIdx);
     }
-    ImGui::TextWrapped("The optimizer decides how gradients are turned into weight updates.");
 
     if (trainer.optimizerType == OptimizerType::SGDMomentum) {
         ImGui::SliderFloat("Momentum", &trainer.momentum, 0.0f, 0.95f, "%.2f");
-        ImGui::TextWrapped("Momentum smooths updates over time, helping push through noisy or shallow regions.");
     } else if (trainer.optimizerType == OptimizerType::Adam) {
         ImGui::SliderFloat("Adam Beta1", &trainer.adamBeta1, 0.7f, 0.99f, "%.3f");
         ImGui::SliderFloat("Adam Beta2", &trainer.adamBeta2, 0.9f, 0.999f, "%.3f");
         ImGui::SliderFloat("Adam Eps", &trainer.adamEps, 1e-8f, 1e-4f, "%.1e");
-        ImGui::TextWrapped("Adam keeps moving averages of gradients (beta1) and their squares (beta2) for adaptive step sizes.");
+    }
+
+    if (ImGui::CollapsingHeader("Hyperparameter Explanations", ImGuiTreeNodeFlags_DefaultOpen)) {
+        ImGui::TextWrapped("Initialization affects the starting weights before training.");
+        ImGui::TextWrapped("Learning rate controls how big each weight update step is.");
+        ImGui::TextWrapped("Batch size is how many points are used per training step.");
+        ImGui::TextWrapped("The optimizer decides how gradients are turned into weight updates.");
+        if (trainer.optimizerType == OptimizerType::SGDMomentum) {
+            ImGui::TextWrapped("Momentum smooths updates over time, helping push through noisy or shallow regions.");
+        } else if (trainer.optimizerType == OptimizerType::Adam) {
+            ImGui::TextWrapped("Adam keeps moving averages of gradients (beta1) and their squares (beta2) for adaptive step sizes.");
+        }
     }
 }
 
-static void drawTrainingSection(Trainer& trainer,
+static void drawTrainingSection(UiState& ui,
+                                Trainer& trainer,
                                 std::size_t currentPointCount,
                                 bool& stepTrainRequested)
 {
@@ -121,6 +128,12 @@ static void drawTrainingSection(Trainer& trainer,
     ImGui::Text("Auto stops when step >= %d or loss <= %.5f", trainer.autoMaxSteps, trainer.autoTargetLoss);
 
     ImGui::Text("Current points: %d", static_cast<int>(currentPointCount));
+
+    ImGui::Separator();
+    ImGui::Checkbox("Show Network Diagram", &ui.showNetworkDiagram);
+    ImGui::Checkbox("Show Loss Plot", &ui.showLossPlot);
+    ImGui::Checkbox("Show Accuracy Plot", &ui.showAccuracyPlot);
+    ImGui::Checkbox("Show Mini Status Overlay", &ui.showMiniOverlay);
 }
 
 static void drawNetworkDiagramWindow(const UiState& ui,
@@ -171,6 +184,27 @@ static void drawLossPlotWindow(const Trainer& trainer,
     } else {
         ImGui::Text("No data yet");
     }
+    ImGui::End();
+}
+
+static void drawTrainingOverlayWindow(Trainer& trainer,
+                                      const ImGuiIO& io)
+{
+    ImGuiWindowFlags flags = ImGuiWindowFlags_NoDecoration |
+                             ImGuiWindowFlags_AlwaysAutoResize |
+                             ImGuiWindowFlags_NoSavedSettings |
+                             ImGuiWindowFlags_NoFocusOnAppearing |
+                             ImGuiWindowFlags_NoNav;
+
+    ImVec2 pos(io.DisplaySize.x - 10.0f, 10.0f);
+    ImGui::SetNextWindowPos(pos, ImGuiCond_Always, ImVec2(1.0f, 0.0f));
+    ImGui::SetNextWindowBgAlpha(0.8f);
+
+    ImGui::Begin("Mini Training Status", nullptr, flags);
+    ImGui::Text("Step: %d", trainer.stepCount);
+    ImGui::Text("Loss: %.4f", trainer.lastLoss);
+    ImGui::Text("Accuracy: %.3f", trainer.lastAccuracy);
+    ImGui::Checkbox("Auto Train", &trainer.autoTrain);
     ImGui::End();
 }
 
@@ -232,11 +266,20 @@ void drawControlPanel(UiState& ui,
     ImGui::SetNextWindowSize(trainSize, ImGuiCond_Once);
     ImGui::Begin("Training & Hyperparams");
     drawHyperparameterSection(trainer);
-    drawTrainingSection(trainer, currentPointCount, stepTrainRequested);
+    drawTrainingSection(ui, trainer, currentPointCount, stepTrainRequested);
     ImGui::End();
 
-    drawNetworkDiagramWindow(ui, trainer, controlsPos, controlsSize);
-    drawLossPlotWindow(trainer, controlsPos, io);
-    drawAccuracyPlotWindow(trainer, controlsPos, io);
+    if (ui.showNetworkDiagram) {
+        drawNetworkDiagramWindow(ui, trainer, controlsPos, controlsSize);
+    }
+    if (ui.showLossPlot) {
+        drawLossPlotWindow(trainer, controlsPos, io);
+    }
+    if (ui.showAccuracyPlot) {
+        drawAccuracyPlotWindow(trainer, controlsPos, io);
+    }
+    if (ui.showMiniOverlay) {
+        drawTrainingOverlayWindow(trainer, io);
+    }
 }
 

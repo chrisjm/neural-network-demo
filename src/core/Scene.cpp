@@ -44,6 +44,10 @@ void initSceneCommon(DatasetType currentDataset,
     ui.hasSelectedPoint   = false;
     ui.selectedPointIndex = -1;
     ui.selectedLabel      = -1;
+    ui.showNetworkDiagram = true;
+    ui.showLossPlot       = true;
+    ui.showAccuracyPlot   = true;
+    ui.showMiniOverlay    = false;
 
     generateDataset(currentDataset, ui.numPoints, ui.spread, dataset);
     pointCloud.upload(dataset);

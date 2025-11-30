@@ -15,6 +15,10 @@ struct UiState {
     bool  hasSelectedPoint;
     int   selectedPointIndex;
     int   selectedLabel;
+    bool  showNetworkDiagram;
+    bool  showLossPlot;
+    bool  showAccuracyPlot;
+    bool  showMiniOverlay;
 };
 
 void drawControlPanel(UiState& ui,
