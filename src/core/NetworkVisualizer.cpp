@@ -10,7 +10,7 @@ NetworkVisualizer::NetworkVisualizer()
     , m_canvasHeight(220.0f)
     , m_marginX(30.0f)
     , m_marginY(20.0f)
-    , m_nodeRadius(4.0f)
+    , m_nodeRadius(5.0f)
 {
 }
 
@@ -275,16 +275,28 @@ void NetworkVisualizer::draw(const ToyNet& net,
             if (hasProbe) {
                 float a = activation;
                 float mag = std::fabs(a);
-                float t = mag / (mag + 1.0f);
+                float v = mag * 3.0f;
+                if (v > 1.0f) v = 1.0f;
+
+                const int baseR = 220;
+                const int baseG = 220;
+                const int baseB = 220;
+
                 int r, g, b;
                 if (a >= 0.0f) {
-                    r = static_cast<int>(200 + 55 * t);
-                    g = static_cast<int>(200 + 55 * t);
-                    b = static_cast<int>(180 - 80 * t);
+                    const int targetR = 255;
+                    const int targetG = 180;
+                    const int targetB = 50;
+                    r = static_cast<int>(baseR + (targetR - baseR) * v);
+                    g = static_cast<int>(baseG + (targetG - baseG) * v);
+                    b = static_cast<int>(baseB + (targetB - baseB) * v);
                 } else {
-                    r = static_cast<int>(180 - 60 * t);
-                    g = static_cast<int>(200 + 40 * t);
-                    b = static_cast<int>(220 + 30 * t);
+                    const int targetR = 80;
+                    const int targetG = 140;
+                    const int targetB = 255;
+                    r = static_cast<int>(baseR + (targetR - baseR) * v);
+                    g = static_cast<int>(baseG + (targetG - baseG) * v);
+                    b = static_cast<int>(baseB + (targetB - baseB) * v);
                 }
                 nodeColor = IM_COL32(r, g, b, 255);
             }
