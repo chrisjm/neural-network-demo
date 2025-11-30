@@ -113,10 +113,6 @@ static void drawTrainingSection(UiState& ui,
     ImGui::Text("Current points: %d", static_cast<int>(currentPointCount));
 
     ImGui::Separator();
-    ImGui::Checkbox("Show Network Diagram", &ui.showNetworkDiagram);
-    ImGui::Checkbox("Show Loss Plot", &ui.showLossPlot);
-    ImGui::Checkbox("Show Accuracy Plot", &ui.showAccuracyPlot);
-    ImGui::Checkbox("Show Mini Status Overlay", &ui.showMiniOverlay);
 }
 
 static void drawNetworkDiagramWindow(const UiState& ui,
@@ -127,8 +123,8 @@ static void drawNetworkDiagramWindow(const UiState& ui,
     // Separate window for the network diagram, positioned below the controls by default.
     ImVec2 diagramSize(360.0f, 260.0f);
     ImVec2 diagramPos(controlsPos.x, controlsPos.y + controlsSize.y + 10.0f);
-    ImGui::SetNextWindowPos(diagramPos, ImGuiCond_Once);
-    ImGui::SetNextWindowSize(diagramSize, ImGuiCond_Once);
+    ImGui::SetNextWindowPos(diagramPos, ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize(diagramSize, ImGuiCond_FirstUseEver);
 
     ImGui::Begin("Network Diagram");
     static NetworkVisualizer visualizer;
@@ -143,8 +139,8 @@ static void drawLossPlotWindow(const Trainer& trainer,
     // Loss plot window.
     ImVec2 lossSize(360.0f, 160.0f);
     ImVec2 lossPos(controlsPos.x, io.DisplaySize.y - lossSize.y - 20.0f);
-    ImGui::SetNextWindowPos(lossPos, ImGuiCond_Once);
-    ImGui::SetNextWindowSize(lossSize, ImGuiCond_Once);
+    ImGui::SetNextWindowPos(lossPos, ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize(lossSize, ImGuiCond_FirstUseEver);
 
     ImGui::Begin("Loss Plot");
     if (trainer.historyCount > 0 && !trainer.lossHistory.empty()) {
@@ -198,8 +194,8 @@ static void drawAccuracyPlotWindow(const Trainer& trainer,
     // Accuracy plot window.
     ImVec2 accSize(360.0f, 160.0f);
     ImVec2 accPos(controlsPos.x - accSize.x - 10.0f, io.DisplaySize.y - accSize.y - 20.0f);
-    ImGui::SetNextWindowPos(accPos, ImGuiCond_Once);
-    ImGui::SetNextWindowSize(accSize, ImGuiCond_Once);
+    ImGui::SetNextWindowPos(accPos, ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize(accSize, ImGuiCond_FirstUseEver);
 
     ImGui::Begin("Accuracy Plot");
     if (trainer.historyCount > 0 && !trainer.accuracyHistory.empty()) {
@@ -235,8 +231,8 @@ void drawControlPanel(UiState& ui,
     ImVec2 controlsSize(360.0f, 260.0f);
     ImVec2 controlsPos(io.DisplaySize.x - controlsSize.x - 20.0f, 20.0f);
 
-    ImGui::SetNextWindowPos(controlsPos, ImGuiCond_Once);
-    ImGui::SetNextWindowSize(controlsSize, ImGuiCond_Once);
+    ImGui::SetNextWindowPos(controlsPos, ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize(controlsSize, ImGuiCond_FirstUseEver);
     ImGui::Begin("Data & Probe");
     drawDatasetSection(ui, currentPointCount, regenerateRequested);
     drawProbeSection(ui, trainer);
@@ -245,24 +241,15 @@ void drawControlPanel(UiState& ui,
     ImVec2 trainSize(360.0f, 260.0f);
     ImVec2 trainPos(controlsPos.x,
                     controlsPos.y + controlsSize.y + 10.0f + 260.0f + 10.0f);
-    ImGui::SetNextWindowPos(trainPos, ImGuiCond_Once);
-    ImGui::SetNextWindowSize(trainSize, ImGuiCond_Once);
+    ImGui::SetNextWindowPos(trainPos, ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize(trainSize, ImGuiCond_FirstUseEver);
     ImGui::Begin("Training & Hyperparams");
     drawHyperparameterSection(trainer);
     drawTrainingSection(ui, trainer, currentPointCount, stepTrainRequested);
     ImGui::End();
 
-    if (ui.showNetworkDiagram) {
-        drawNetworkDiagramWindow(ui, trainer, controlsPos, controlsSize);
-    }
-    if (ui.showLossPlot) {
-        drawLossPlotWindow(trainer, controlsPos, io);
-    }
-    if (ui.showAccuracyPlot) {
-        drawAccuracyPlotWindow(trainer, controlsPos, io);
-    }
-    if (ui.showMiniOverlay) {
-        drawTrainingOverlayWindow(trainer, io);
-    }
+    drawNetworkDiagramWindow(ui, trainer, controlsPos, controlsSize);
+    drawLossPlotWindow(trainer, controlsPos, io);
+    drawAccuracyPlotWindow(trainer, controlsPos, io);
 }
 
