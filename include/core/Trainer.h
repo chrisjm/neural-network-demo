@@ -13,6 +13,7 @@ struct Trainer {
     bool  autoTrain;
     int   autoMaxEpochs;
     float autoTargetLoss;
+    bool  useTargetLossStop;
 
     OptimizerType optimizerType;
     float         momentum;

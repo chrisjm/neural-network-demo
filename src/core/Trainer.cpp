@@ -4,8 +4,9 @@ Trainer::Trainer()
     : learningRate(0.1f)
     , batchSize(64)
     , autoTrain(false)
-    , autoMaxEpochs(2500)
+    , autoMaxEpochs(1000)
     , autoTargetLoss(0.01f)
+    , useTargetLossStop(false)
     , optimizerType(OptimizerType::SGD)
     , momentum(0.9f)
     , adamBeta1(0.9f)
@@ -93,7 +94,10 @@ bool Trainer::autoTrainEpochs(const std::vector<DataPoint>& dataset)
 
     trainOneEpoch(dataset);
 
-    if (epochCount >= autoMaxEpochs || lastLoss <= autoTargetLoss) {
+    bool stopByEpoch = (autoMaxEpochs > 0 && epochCount >= autoMaxEpochs);
+    bool stopByLoss  = (useTargetLossStop && autoTargetLoss > 0.0f && lastLoss <= autoTargetLoss);
+
+    if (stopByEpoch || stopByLoss) {
         autoTrain = false;
     }
 

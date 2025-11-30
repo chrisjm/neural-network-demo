@@ -108,9 +108,10 @@ static void drawTrainingSection(UiState& ui,
     ImGui::Text("Accuracy: %.3f", trainer.lastAccuracy);
 
     ImGui::Separator();
-    ImGui::SliderInt("Auto Max Epochs", &trainer.autoMaxEpochs, 1, 5000);
+    ImGui::SliderInt("Auto Max Epochs", &trainer.autoMaxEpochs, 0, 5000);
     // TODO: Add an ImGui help tooltip explaining epochs vs internal step terminology.
-    ImGui::SliderFloat("Auto Target Loss", &trainer.autoTargetLoss, 0.00001f, 1.0f, "%.5f");
+    ImGui::Checkbox("Stop on Target Loss", &trainer.useTargetLossStop);
+    ImGui::SliderFloat("Auto Target Loss", &trainer.autoTargetLoss, 0.0f, 1.0f, "%.5f");
     ImGui::Text("Current points: %d", static_cast<int>(currentPointCount));
 
     ImGui::Separator();
