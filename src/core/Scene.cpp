@@ -37,7 +37,7 @@ void initSceneCommon(DatasetType currentDataset,
     ui.datasetIndex       = static_cast<int>(currentDataset);
     ui.numPoints          = 1000;
     ui.spread             = 0.25f;
-    ui.pointSize          = 6.0f;
+    ui.pointSize          = 8.0f;
     ui.probeEnabled       = true;
     ui.probeX             = 0.0f;
     ui.probeY             = 0.0f;
@@ -152,7 +152,7 @@ void updateAndRenderFrame(FrameContext& ctx) {
     ctx.pointShader.use();
 
     if (ctx.pointSizeLocation != -1) {
-        ctx.pointShader.setFloat(ctx.pointSizeLocation, ctx.ui.pointSize);
+        ctx.pointShader.setFloat(ctx.pointSizeLocation, 8.0f);
     }
     if (ctx.colorClass0Location != -1) {
         ctx.pointShader.setVec3(ctx.colorClass0Location, 0.2f, 0.6f, 1.0f);

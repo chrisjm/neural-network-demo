@@ -26,9 +26,6 @@ static void drawDatasetSection(UiState& ui,
 static void drawProbeSection(UiState& ui, Trainer& trainer)
 {
     ImGui::Separator();
-    ImGui::SliderFloat("Point Size", &ui.pointSize, 2.0f, 12.0f);
-
-    ImGui::Separator();
     ImGui::Checkbox("Activation Probe Enabled", &ui.probeEnabled);
     ImGui::DragFloat("Probe X", &ui.probeX, 0.01f, -1.5f, 1.5f, "%.2f");
     ImGui::DragFloat("Probe Y", &ui.probeY, 0.01f, -1.5f, 1.5f, "%.2f");
@@ -93,18 +90,6 @@ static void drawHyperparameterSection(Trainer& trainer)
         ImGui::SliderFloat("Adam Beta2", &trainer.adamBeta2, 0.9f, 0.999f, "%.3f");
         ImGui::SliderFloat("Adam Eps", &trainer.adamEps, 1e-8f, 1e-4f, "%.1e");
     }
-
-    if (ImGui::CollapsingHeader("Hyperparameter Explanations", ImGuiTreeNodeFlags_DefaultOpen)) {
-        ImGui::TextWrapped("Initialization affects the starting weights before training.");
-        ImGui::TextWrapped("Learning rate controls how big each weight update step is.");
-        ImGui::TextWrapped("Batch size is how many points are used per training step.");
-        ImGui::TextWrapped("The optimizer decides how gradients are turned into weight updates.");
-        if (trainer.optimizerType == OptimizerType::SGDMomentum) {
-            ImGui::TextWrapped("Momentum smooths updates over time, helping push through noisy or shallow regions.");
-        } else if (trainer.optimizerType == OptimizerType::Adam) {
-            ImGui::TextWrapped("Adam keeps moving averages of gradients (beta1) and their squares (beta2) for adaptive step sizes.");
-        }
-    }
 }
 
 static void drawTrainingSection(UiState& ui,
@@ -125,8 +110,6 @@ static void drawTrainingSection(UiState& ui,
     ImGui::Separator();
     ImGui::SliderInt("Auto Max Steps", &trainer.autoMaxSteps, 1, 50000);
     ImGui::SliderFloat("Auto Target Loss", &trainer.autoTargetLoss, 0.00001f, 1.0f, "%.5f");
-    ImGui::Text("Auto stops when step >= %d or loss <= %.5f", trainer.autoMaxSteps, trainer.autoTargetLoss);
-
     ImGui::Text("Current points: %d", static_cast<int>(currentPointCount));
 
     ImGui::Separator();
