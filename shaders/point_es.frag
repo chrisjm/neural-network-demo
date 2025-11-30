@@ -1,4 +1,6 @@
-#version 330 core
+#version 300 es
+precision highp float;
+precision highp int;
 flat in int vLabel;
 flat in int vIndex;
 out vec4 FragColor;

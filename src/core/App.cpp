@@ -191,8 +191,8 @@ int App::run() {
     // 3. BUILD SHADERS (Compiling Logic)
     // ==========================================
 
-    auto pointVertexSrc   = loadTextFile("shaders/point.vert");
-    auto pointFragmentSrc = loadTextFile("shaders/point.frag");
+    auto pointVertexSrc   = loadTextFile("shaders/point_es.vert");
+    auto pointFragmentSrc = loadTextFile("shaders/point_es.frag");
     if (!pointVertexSrc || !pointFragmentSrc) {
         std::cerr << "[Init] Failed to load point shader sources" << std::endl;
         shutdownApp();
@@ -207,8 +207,8 @@ int App::run() {
     g_wasmState.colorClass1Location   = glGetUniformLocation(g_wasmState.pointShader->getId(), "uColorClass1");
     g_wasmState.selectedIndexLocation = glGetUniformLocation(g_wasmState.pointShader->getId(), "uSelectedIndex");
 
-    auto gridVertexSrc   = loadTextFile("shaders/grid.vert");
-    auto gridFragmentSrc = loadTextFile("shaders/grid.frag");
+    auto gridVertexSrc   = loadTextFile("shaders/grid_es.vert");
+    auto gridFragmentSrc = loadTextFile("shaders/grid_es.frag");
     if (!gridVertexSrc || !gridFragmentSrc) {
         std::cerr << "[Init] Failed to load grid shader sources" << std::endl;
         shutdownApp();
@@ -217,8 +217,8 @@ int App::run() {
     g_wasmState.gridShader = std::make_unique<ShaderProgram>(gridVertexSrc->c_str(), gridFragmentSrc->c_str());
     g_wasmState.gridColorLocation = glGetUniformLocation(g_wasmState.gridShader->getId(), "uColor");
 
-    auto fieldVertexSrc   = loadTextFile("shaders/field.vert");
-    auto fieldFragmentSrc = loadTextFile("shaders/field.frag");
+    auto fieldVertexSrc   = loadTextFile("shaders/field_es.vert");
+    auto fieldFragmentSrc = loadTextFile("shaders/field_es.frag");
     if (!fieldVertexSrc || !fieldFragmentSrc) {
         std::cerr << "[Init] Failed to load field shader sources" << std::endl;
         shutdownApp();
