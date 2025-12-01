@@ -70,6 +70,36 @@ int   nn_get_num_points();
 float nn_get_spread();
 float nn_get_point_size();
 
+void nn_set_learning_rate(float value);
+void nn_set_batch_size(int value);
+void nn_set_auto_max_epochs(int value);
+void nn_set_auto_target_loss(float value);
+void nn_set_use_target_loss_stop(int enabled);
+void nn_set_optimizer(int optimizerType);
+void nn_set_momentum(float value);
+void nn_set_adam_beta1(float value);
+void nn_set_adam_beta2(float value);
+void nn_set_adam_eps(float value);
+void nn_set_init_mode(int initMode);
+void nn_set_probe_enabled(int enabled);
+void nn_set_probe_position(float x, float y);
+
+int   nn_get_auto_max_epochs();
+float nn_get_auto_target_loss();
+int   nn_get_use_target_loss_stop();
+int   nn_get_optimizer();
+float nn_get_momentum();
+float nn_get_adam_beta1();
+float nn_get_adam_beta2();
+float nn_get_adam_eps();
+int   nn_get_init_mode();
+int   nn_get_probe_enabled();
+float nn_get_probe_x();
+float nn_get_probe_y();
+int   nn_get_selected_point_index();
+int   nn_get_selected_label();
+int   nn_get_max_points();
+
 #ifdef __cplusplus
 } // extern "C"
 #endif

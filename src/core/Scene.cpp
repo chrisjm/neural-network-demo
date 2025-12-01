@@ -58,6 +58,7 @@ void initSceneCommon(DatasetType currentDataset,
 }
 
 void updateAndRenderFrame(FrameContext& ctx) {
+#ifdef NNDEMO_ENABLE_IMGUI
     ImGui_ImplOpenGL3_NewFrame();
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
@@ -66,21 +67,29 @@ void updateAndRenderFrame(FrameContext& ctx) {
 #endif
 
     ImGuiIO& io = ImGui::GetIO();
+#endif
 
     bool regenerate = false;
     bool stepTrainRequested = false;
 
+#ifdef NNDEMO_ENABLE_IMGUI
     drawControlPanel(ctx.ui,
                      ctx.trainer,
                      ctx.dataset.size(),
                      regenerate,
                      stepTrainRequested);
+#endif
+
+    bool wantCaptureMouse = false;
+#ifdef NNDEMO_ENABLE_IMGUI
+    wantCaptureMouse = io.WantCaptureMouse;
+#endif
 
     handleProbeSelection(ctx.window,
                          ctx.dataset,
                          ctx.ui,
                          ctx.leftMousePressedLastFrame,
-                         io.WantCaptureMouse);
+                         wantCaptureMouse);
 
     if (regenerate) {
         if (ctx.ui.numPoints < 10) ctx.ui.numPoints = 10;
@@ -168,8 +177,10 @@ void updateAndRenderFrame(FrameContext& ctx) {
 
     ctx.pointCloud.draw(ctx.dataset.size());
 
+#ifdef NNDEMO_ENABLE_IMGUI
     ImGui::Render();
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+#endif
 
     glfwSwapBuffers(ctx.window);
     glfwPollEvents();
