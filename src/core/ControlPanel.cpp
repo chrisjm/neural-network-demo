@@ -228,6 +228,19 @@ void drawControlPanel(UiState& ui,
     stepTrainRequested = false;
 
     ImGuiIO& io = ImGui::GetIO();
+#ifdef __EMSCRIPTEN__
+    // WebAssembly build: only show the visualization windows. All controls
+    // (dataset, training hyperparameters, etc.) are handled externally via
+    // the C API and JavaScript UI.
+    ImVec2 controlsSize(360.0f, 260.0f);
+    ImVec2 controlsPos(io.DisplaySize.x - controlsSize.x - 20.0f, 20.0f);
+
+    drawNetworkDiagramWindow(ui, trainer, controlsPos, controlsSize);
+    drawLossPlotWindow(trainer, controlsPos, io);
+    drawAccuracyPlotWindow(trainer, controlsPos, io);
+#else
+    // Desktop build: full ImGui control panel with data, probe, and
+    // training windows in addition to the visualization plots.
 
     // Main controls window on the right side.
     ImVec2 controlsSize(360.0f, 260.0f);
@@ -253,5 +266,6 @@ void drawControlPanel(UiState& ui,
     drawNetworkDiagramWindow(ui, trainer, controlsPos, controlsSize);
     drawLossPlotWindow(trainer, controlsPos, io);
     drawAccuracyPlotWindow(trainer, controlsPos, io);
+#endif
 }
 
