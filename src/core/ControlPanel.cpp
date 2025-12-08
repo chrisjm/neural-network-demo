@@ -123,8 +123,14 @@ static void drawNetworkDiagramWindow(const UiState& ui,
                                      const ImVec2& controlsSize)
 {
     // Separate window for the network diagram, positioned below the controls by default.
+
+#ifdef __EMSCRIPTEN__
+    ImVec2 diagramSize(358.0f, 328.0f);
+    ImVec2 diagramPos(8.0f, 7.0f);
+#else
     ImVec2 diagramSize(360.0f, 260.0f);
     ImVec2 diagramPos(controlsPos.x, controlsPos.y + controlsSize.y + 10.0f);
+#endif
     ImGui::SetNextWindowPos(diagramPos, ImGuiCond_FirstUseEver);
     ImGui::SetNextWindowSize(diagramSize, ImGuiCond_FirstUseEver);
 
@@ -139,8 +145,14 @@ static void drawLossPlotWindow(const Trainer& trainer,
                                const ImGuiIO& io)
 {
     // Loss plot window.
+
+#ifdef __EMSCRIPTEN__
+    ImVec2 lossSize(208.0f, 176.0f);
+    ImVec2 lossPos(780.0f, 569.0f);
+#else
     ImVec2 lossSize(360.0f, 160.0f);
     ImVec2 lossPos(controlsPos.x, io.DisplaySize.y - lossSize.y - 20.0f);
+#endif
     ImGui::SetNextWindowPos(lossPos, ImGuiCond_FirstUseEver);
     ImGui::SetNextWindowSize(lossSize, ImGuiCond_FirstUseEver);
 
@@ -194,8 +206,14 @@ static void drawAccuracyPlotWindow(const Trainer& trainer,
                                    const ImGuiIO& io)
 {
     // Accuracy plot window.
+
+#ifdef __EMSCRIPTEN__
+    ImVec2 accSize(245.0f, 176.0f);
+    ImVec2 accPos(530.0f, 569.0f);
+#else
     ImVec2 accSize(360.0f, 160.0f);
     ImVec2 accPos(controlsPos.x - accSize.x - 10.0f, io.DisplaySize.y - accSize.y - 20.0f);
+#endif
     ImGui::SetNextWindowPos(accPos, ImGuiCond_FirstUseEver);
     ImGui::SetNextWindowSize(accSize, ImGuiCond_FirstUseEver);
 
