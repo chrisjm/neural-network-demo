@@ -55,6 +55,7 @@ void nn_set_point_size(float size);
 void nn_set_dataset(int datasetIndex, int numPoints, float spread);
 void nn_set_auto_train(int enabled);
 void nn_step_train();
+void nn_shutdown();
 
 // Read-back API for JS to query current state.
 float nn_get_last_loss();

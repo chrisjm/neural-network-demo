@@ -42,6 +42,36 @@ WasmSceneState g_wasmState;
 static App* g_wasmApp = nullptr;
 
 static void wasm_main_loop();
+
+extern "C" void nn_shutdown() {
+    emscripten_cancel_main_loop();
+    g_wasmState.trainer.autoTrain = false;
+
+    g_wasmState.pointCloud.shutdown();
+    g_wasmState.gridAxes.shutdown();
+    g_wasmState.fieldVis.shutdown();
+
+    std::vector<DataPoint>().swap(g_wasmState.dataset);
+    g_wasmState.maxPoints = 0;
+    g_wasmState.leftMousePressedLastFrame = false;
+
+    g_wasmState.pointShader.reset();
+    g_wasmState.gridShader.reset();
+    g_wasmState.fieldShader.reset();
+
+    g_wasmState.trainer.lossHistory.clear();
+    g_wasmState.trainer.accuracyHistory.clear();
+    g_wasmState.trainer.historyCount = 0;
+
+    if (ImGui::GetCurrentContext()) {
+        ImGui_ImplOpenGL3_Shutdown();
+        ImGui_ImplGlfw_Shutdown();
+        ImGui::DestroyContext();
+    }
+
+    glfwTerminate();
+    g_wasmApp = nullptr;
+}
 #endif
 
 // ==========================================
